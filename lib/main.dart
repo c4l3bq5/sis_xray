@@ -1,7 +1,17 @@
+// main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'screens/home_screen.dart';
+import 'screens/xray_screen.dart';
 
-void main() {
+void main() async {
+  // IMPORTANTE: Inicializar binding antes de runApp
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar datos de localización para intl
+  await initializeDateFormatting('es_ES', null);
+
   runApp(const MyApp());
 }
 
@@ -11,14 +21,21 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'X-Ray Fracture Detector',
+      title: 'Sistema de Traumatología',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const HomeScreen(),
-      debugShowCheckedModeBanner: false,
+      initialRoute: '/home',
+      routes: {
+        '/home': (context) => HomeScreen(
+          userName: 'Dr. Julio Torrejón',
+          userRole: 'Traumatólogo',
+          enTurno: true,
+        ),
+        '/xray': (context) => const XRayScreen(),
+      },
     );
   }
 }
