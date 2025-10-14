@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'camera_screen.dart';
-import '../services/image_processor.dart'; // Importar el procesador
+import '../services/image_processor.dart';
+import '../services/api_service.dart'; // ¡IMPORTANTE! Importar el servicio API
 
 class XRayScreen extends StatefulWidget {
   const XRayScreen({super.key});
@@ -14,20 +15,29 @@ class XRayScreen extends StatefulWidget {
 }
 
 class _XRayScreenState extends State<XRayScreen> {
+  // Variables de Estado para la Imagen y Procesamiento
   File? _selectedImage;
   Uint8List? _imageBytes;
-  Uint8List? _processedImageBytes; // Para almacenar la imagen procesada
+  Uint8List? _processedImageBytes;
   final ImagePicker _picker = ImagePicker();
-  bool _isLoading = false;
-  bool _isProcessing = false;
   ImageSource? _selectedSource;
+
+  // Variables de Estado para UI y API
+  bool _isLoading = false; // Carga de imagen (Picker/Camera)
+  bool _isProcessing = false; // Aplicación de filtros local
+  bool _isAnalyzing = false; // Llamada a la API
   bool _filtersApplied = false;
+  Map<String, dynamic>? _apiResult; // Resultado JSON de la API
+
+  // --- MÉTODOS DE MANEJO DE IMAGEN ---
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       setState(() {
         _isLoading = true;
         _filtersApplied = false;
+        _apiResult =
+            null; // Limpiar resultado anterior al seleccionar nueva imagen
       });
 
       if (source == ImageSource.camera) {
@@ -52,8 +62,6 @@ class _XRayScreenState extends State<XRayScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-
-          // Aplicar filtros automáticamente
           _applyFilters();
         } else {
           setState(() {
@@ -93,8 +101,6 @@ class _XRayScreenState extends State<XRayScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-
-          // Aplicar filtros automáticamente
           _applyFilters();
         }
       } else {
@@ -152,7 +158,6 @@ class _XRayScreenState extends State<XRayScreen> {
         );
       }
 
-      // Aplicar filtros
       final processed = await ImageProcessor.applyInfinixFilters(_imageBytes!);
 
       if (mounted) {
@@ -188,6 +193,99 @@ class _XRayScreenState extends State<XRayScreen> {
     }
   }
 
+  void _clearImage() {
+    setState(() {
+      _selectedImage = null;
+      _imageBytes = null;
+      _processedImageBytes = null;
+      _isLoading = false;
+      _selectedSource = null;
+      _filtersApplied = false;
+      _apiResult = null; // Limpiar resultado de API
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Imagen eliminada'),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // --- MÉTODO DE ANÁLISIS (LLAMADA A LA API) ---
+
+  void _analyzeImage() async {
+    final imageToAnalyze = _processedImageBytes ?? _imageBytes;
+
+    if (imageToAnalyze == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor selecciona una imagen primero'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isAnalyzing = true;
+      _apiResult = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _filtersApplied
+              ? 'Enviando imagen optimizada a la API...'
+              : 'Enviando imagen original a la API...',
+        ),
+        backgroundColor: Colors.blueAccent,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+
+    try {
+      // LLAMADA CRÍTICA AL API DE NGROK/COLAB
+      final result = await ApiService.analyzeImage(imageToAnalyze);
+
+      if (mounted) {
+        setState(() {
+          _apiResult = result;
+          _isAnalyzing = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Análisis de la API recibido con éxito'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error en la llamada a la API: $e');
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al analizar: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  // --- WIDGETS DE VISTA ---
+
   Widget _buildImagePreview() {
     if (_isLoading) {
       return Container(
@@ -214,7 +312,6 @@ class _XRayScreenState extends State<XRayScreen> {
       );
     }
 
-    // Mostrar imagen procesada si existe, sino la original
     final displayBytes = _processedImageBytes ?? _imageBytes;
 
     if (displayBytes != null) {
@@ -376,63 +473,106 @@ class _XRayScreenState extends State<XRayScreen> {
     );
   }
 
-  void _clearImage() {
-    setState(() {
-      _selectedImage = null;
-      _imageBytes = null;
-      _processedImageBytes = null;
-      _isLoading = false;
-      _selectedSource = null;
-      _filtersApplied = false;
-    });
+  // --- WIDGET PARA MOSTRAR RESULTADOS DE API ---
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Imagen eliminada'),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+  Widget _buildAnalysisResult(Map<String, dynamic> result) {
+    final status = result['status'] ?? 'error';
+    final region = result['region_analysis'] ?? 'N/A';
+    final fracture = result['fracture_analysis'] ?? 'N/A';
+    final error = result['error'] ?? 'N/A';
+
+    final isSuccess = status == 'success';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isSuccess ? Colors.green[50] : Colors.red[50],
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: isSuccess ? Colors.green : Colors.red,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isSuccess ? '✅ Análisis Exitoso' : '❌ Error de Análisis',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isSuccess ? Colors.green : Colors.red,
+            ),
+          ),
+          const Divider(height: 25),
+          _buildResultRow(
+            'Estado de la API',
+            status.toUpperCase(),
+            isSuccess ? Colors.green : Colors.red,
+          ),
+          _buildResultRow('Región Clasificada', region, Colors.blueAccent),
+          _buildResultRow(
+            'Diagnóstico de Fractura',
+            fracture,
+            Colors.deepOrange,
+          ),
+
+          if (!isSuccess)
+            _buildResultRow('Mensaje de Error', error, Colors.red),
+
+          // Lógica para mostrar la imagen de segmentación (si la API la devuelve)
+          if (result['segmented_image_base64'] != null && isSuccess) ...[
+            const SizedBox(height: 20),
+            const Text(
+              'Imagen de Segmentación (Base64)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            // Asumiendo que tienes una función para decodificar base64 a Uint8List
+            // Image.memory(base64Decode(result['segmented_image_base64'])),
+            const Text('Mostrar imagen segmentada aquí...'),
+          ],
+        ],
       ),
     );
   }
 
-  void _analyzeImage() {
-    // Usar la imagen procesada si existe, sino la original
-    final imageToAnalyze = _processedImageBytes ?? _imageBytes;
-
-    if (imageToAnalyze == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor selecciona una imagen primero'),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    debugPrint('Analizando imagen...');
-    debugPrint('Tamaño de imagen: ${imageToAnalyze.length} bytes');
-    debugPrint('Filtros aplicados: $_filtersApplied');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _filtersApplied
-              ? 'Analizando radiografía con filtros aplicados...'
-              : 'Analizando radiografía original...',
-        ),
-        backgroundColor: Colors.blueAccent,
-        behavior: SnackBarBehavior.floating,
+  Widget _buildResultRow(String title, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$title: ',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: TextStyle(fontSize: 16, color: color)),
+          ),
+        ],
       ),
     );
-
-    // Aquí enviarás imageToAnalyze a tu API
   }
+
+  // --- WIDGET PRINCIPAL ---
 
   @override
   Widget build(BuildContext context) {
     final hasImage = _imageBytes != null;
+    final isBusy = _isLoading || _isProcessing || _isAnalyzing;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -454,6 +594,7 @@ class _XRayScreenState extends State<XRayScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // TÍTULO Y DESCRIPCIÓN
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -475,11 +616,12 @@ class _XRayScreenState extends State<XRayScreen> {
 
               const SizedBox(height: 20),
 
+              // BOTONES DE CÁMARA/GALERÍA
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _isLoading || _isProcessing
+                      onPressed: isBusy
                           ? null
                           : () => _pickImage(ImageSource.gallery),
                       icon: const Icon(Icons.photo_library, size: 24),
@@ -505,7 +647,7 @@ class _XRayScreenState extends State<XRayScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _isLoading || _isProcessing
+                      onPressed: isBusy
                           ? null
                           : () => _pickImage(ImageSource.camera),
                       icon: const Icon(Icons.camera_alt, size: 24),
@@ -533,18 +675,18 @@ class _XRayScreenState extends State<XRayScreen> {
 
               const SizedBox(height: 25),
 
+              // VISTA PREVIA DE IMAGEN
               _buildImagePreview(),
 
               if (hasImage) ...[
                 const SizedBox(height: 20),
 
+                // BOTONES DE ELIMINAR Y ANALIZAR
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _isLoading || _isProcessing
-                            ? null
-                            : _clearImage,
+                        onPressed: isBusy ? null : _clearImage,
                         icon: const Icon(Icons.delete_outline, size: 22),
                         label: const Text(
                           'Eliminar',
@@ -567,9 +709,7 @@ class _XRayScreenState extends State<XRayScreen> {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
-                        onPressed: _isLoading || _isProcessing
-                            ? null
-                            : _analyzeImage,
+                        onPressed: isBusy ? null : _analyzeImage,
                         icon: const Icon(Icons.analytics, size: 22),
                         label: const Text(
                           'Analizar Radiografía',
@@ -593,8 +733,36 @@ class _XRayScreenState extends State<XRayScreen> {
                   ],
                 ),
 
+                // --- RESULTADOS DE API ---
+                if (_isAnalyzing)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 30),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.blueAccent,
+                            ),
+                          ),
+                          SizedBox(height: 15),
+                          Text(
+                            'Esperando respuesta del servidor (Ngrok/Colab)...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.blueGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                if (_apiResult != null) _buildAnalysisResult(_apiResult!),
+
                 const SizedBox(height: 20),
 
+                // PANEL DE INFO TÉCNICA
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -648,6 +816,8 @@ class _XRayScreenState extends State<XRayScreen> {
                   ),
                 ),
               ],
+
+              const SizedBox(height: 40),
             ],
           ),
         ),
