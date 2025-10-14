@@ -237,19 +237,32 @@ class _XRayScreenState extends State<XRayScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          _filtersApplied
-              ? 'Enviando imagen optimizada a la API...'
-              : 'Enviando imagen original a la API...',
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _filtersApplied
+                  ? 'Analizando imagen optimizada...'
+                  : 'Analizando imagen original...',
+            ),
+          ],
         ),
         backgroundColor: Colors.blueAccent,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 3),
       ),
     );
 
     try {
-      // LLAMADA CRÍTICA AL API DE NGROK/COLAB
+      // LLAMADA AL API
       final result = await ApiService.analyzeImage(imageToAnalyze);
 
       if (mounted) {
@@ -258,26 +271,39 @@ class _XRayScreenState extends State<XRayScreen> {
           _isAnalyzing = false;
         });
 
+        // Verificar si requiere atención
+        final requiresAttention =
+            result['requires_attention'] as bool? ?? false;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ Análisis de la API recibido con éxito'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              requiresAttention
+                  ? ' FRACTURAS DETECTADAS - Atención médica requerida'
+                  : ' Análisis completado - Sin fracturas evidentes',
+            ),
+            backgroundColor: requiresAttention ? Colors.red : Colors.green,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
     } catch (e) {
-      debugPrint('Error en la llamada a la API: $e');
+      debugPrint('Error en análisis: $e');
+
       if (mounted) {
         setState(() {
           _isAnalyzing = false;
+          // Guardar error en el resultado
+          _apiResult = {'status': 'error', 'error_message': e.toString()};
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al analizar: ${e.toString()}'),
+            content: Text(' ${e.toString()}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 6),
           ),
         );
       }
@@ -477,69 +503,283 @@ class _XRayScreenState extends State<XRayScreen> {
 
   Widget _buildAnalysisResult(Map<String, dynamic> result) {
     final status = result['status'] ?? 'error';
-    final region = result['region_analysis'] ?? 'N/A';
-    final fracture = result['fracture_analysis'] ?? 'N/A';
-    final error = result['error'] ?? 'N/A';
-
     final isSuccess = status == 'success';
+    final isRejected = status == 'rejected';
+
+    // Caso 1: Error
+    if (status == 'error') {
+      return Container(
+        margin: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.red[50],
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.red, width: 2),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 60, color: Colors.red),
+            const SizedBox(height: 12),
+            const Text(
+              '❌ Error en el Análisis',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              result['error_message']?.toString() ??
+                  result['reason']?.toString() ??
+                  'Error desconocido',
+              style: const TextStyle(fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Caso 2: Imagen rechazada
+    if (isRejected) {
+      return Container(
+        margin: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.orange, width: 2),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.warning_amber, size: 60, color: Colors.orange),
+            const SizedBox(height: 12),
+            const Text(
+              ' Imagen Rechazada',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              result['reason']?.toString() ?? 'Razón desconocida',
+              style: const TextStyle(fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Caso 3: Análisis exitoso
+    final region = result['region']?.toString().toUpperCase() ?? 'N/A';
+    final confidence = result['confidence'] as double? ?? 0.0;
+    final detectedBones = result['detected_bones'] as int? ?? 0;
+    final fracturesDetected = result['fractures_detected'] as int? ?? 0;
+    final requiresAttention = result['requires_attention'] as bool? ?? false;
 
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isSuccess ? Colors.green[50] : Colors.red[50],
+        color: requiresAttention ? Colors.red[50] : Colors.green[50],
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: isSuccess ? Colors.green : Colors.red,
-          width: 1.5,
+          color: requiresAttention ? Colors.red : Colors.green,
+          width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.2),
             spreadRadius: 2,
-            blurRadius: 5,
+            blurRadius: 8,
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            isSuccess ? '✅ Análisis Exitoso' : '❌ Error de Análisis',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: isSuccess ? Colors.green : Colors.red,
-            ),
-          ),
-          const Divider(height: 25),
-          _buildResultRow(
-            'Estado de la API',
-            status.toUpperCase(),
-            isSuccess ? Colors.green : Colors.red,
-          ),
-          _buildResultRow('Región Clasificada', region, Colors.blueAccent),
-          _buildResultRow(
-            'Diagnóstico de Fractura',
-            fracture,
-            Colors.deepOrange,
+          // Encabezado
+          Row(
+            children: [
+              Icon(
+                requiresAttention ? Icons.warning : Icons.check_circle,
+                size: 40,
+                color: requiresAttention ? Colors.red : Colors.green,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  requiresAttention
+                      ? ' FRACTURAS DETECTADAS'
+                      : ' Sin Fracturas Evidentes',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: requiresAttention ? Colors.red : Colors.green,
+                  ),
+                ),
+              ),
+            ],
           ),
 
-          if (!isSuccess)
-            _buildResultRow('Mensaje de Error', error, Colors.red),
+          const Divider(height: 30, thickness: 1.5),
 
-          // Lógica para mostrar la imagen de segmentación (si la API la devuelve)
-          if (result['segmented_image_base64'] != null && isSuccess) ...[
-            const SizedBox(height: 20),
+          // Región
+          _buildInfoRow(
+            'Región Analizada',
+            region,
+            Icons.location_on,
+            Colors.blueAccent,
+          ),
+
+          // Confianza
+          _buildInfoRow(
+            'Nivel de Confianza',
+            '${(confidence * 100).toStringAsFixed(1)}%',
+            Icons.psychology,
+            confidence > 0.8 ? Colors.green : Colors.orange,
+          ),
+
+          // Huesos detectados
+          _buildInfoRow(
+            'Estructuras Óseas',
+            '$detectedBones huesos identificados',
+            Icons.broken_image,
+            Colors.deepPurple,
+          ),
+
+          // Fracturas
+          _buildInfoRow(
+            'Fracturas Detectadas',
+            fracturesDetected > 0
+                ? '$fracturesDetected fractura(s)'
+                : 'Ninguna',
+            Icons.crisis_alert,
+            fracturesDetected > 0 ? Colors.red : Colors.green,
+          ),
+
+          // Detalles de fracturas
+          if (fracturesDetected > 0 && result['fracture_details'] != null) ...[
+            const SizedBox(height: 16),
             const Text(
-              'Imagen de Segmentación (Base64)',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ' Detalles de Fracturas:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.red,
+              ),
             ),
-            const SizedBox(height: 10),
-            // Asumiendo que tienes una función para decodificar base64 a Uint8List
-            // Image.memory(base64Decode(result['segmented_image_base64'])),
-            const Text('Mostrar imagen segmentada aquí...'),
+            const SizedBox(height: 8),
+            ...List.generate((result['fracture_details'] as List).length, (
+              index,
+            ) {
+              final fracture = (result['fracture_details'] as List)[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${index + 1}. ${fracture['description'] ?? 'Fractura'}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    if (fracture['affected_bone'] != null)
+                      Text(
+                        'Hueso: ${fracture['affected_bone']}',
+                        style: TextStyle(fontSize: 13, color: Colors.red[900]),
+                      ),
+                  ],
+                ),
+              );
+            }),
           ],
+
+          // Recomendación médica
+          if (requiresAttention) ...[
+            const Divider(height: 30, thickness: 1.5),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.medical_services, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Recomendación Médica',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '• Consulte con un especialista inmediatamente\n'
+                    '• Este sistema es de apoyo, no diagnóstico definitivo\n'
+                    '• Requiere validación por profesional médico',
+                    style: TextStyle(height: 1.5, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 24, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
