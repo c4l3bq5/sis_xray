@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:math' show min;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,13 +32,12 @@ class _XRayScreenState extends State<XRayScreen> {
 
   // --- MÉTODOS DE MANEJO DE IMAGEN ---
 
-  Future<void> _pickImage(ImageSource source) async {
+    Future<void> _pickImage(ImageSource source) async {
     try {
       setState(() {
         _isLoading = true;
         _filtersApplied = false;
-        _apiResult =
-            null; // Limpiar resultado anterior al seleccionar nueva imagen
+        _apiResult = null;
       });
 
       if (source == ImageSource.camera) {
@@ -73,14 +73,14 @@ class _XRayScreenState extends State<XRayScreen> {
 
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
       );
 
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
         if (!mounted) return;
+
+        debugPrint(' Imagen capturada: ${(bytes.length / 1024).toStringAsFixed(1)} KB');
+        debugPrint(' Primeros bytes: ${bytes.sublist(0, min(10, bytes.length))}');
 
         setState(() {
           _imageBytes = bytes;
@@ -91,12 +91,10 @@ class _XRayScreenState extends State<XRayScreen> {
         });
 
         if (mounted) {
-          final sourceName = source == ImageSource.camera
-              ? 'cámara'
-              : 'galería';
+          final sourceName = source == ImageSource.camera ? 'cámara' : 'galería';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Imagen capturada desde $sourceName'),
+              content: Text('Imagen capturada desde $sourceName (calidad original)'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
             ),
@@ -217,7 +215,7 @@ class _XRayScreenState extends State<XRayScreen> {
   // --- MÉTODO DE ANÁLISIS (LLAMADA A LA API) ---
 
   void _analyzeImage() async {
-    final imageToAnalyze = _processedImageBytes ?? _imageBytes;
+    final imageToAnalyze = _imageBytes;
 
     if (imageToAnalyze == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,11 +233,14 @@ class _XRayScreenState extends State<XRayScreen> {
       _apiResult = null;
     });
 
+    debugPrint(' Enviando imagen ORIGINAL para análisis');
+    debugPrint(' Tamaño: ${(imageToAnalyze.length / 1024).toStringAsFixed(1)} KB');
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(
@@ -247,23 +248,21 @@ class _XRayScreenState extends State<XRayScreen> {
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
-            const SizedBox(width: 12),
-            Text(
-              _filtersApplied
-                  ? 'Analizando imagen optimizada...'
-                  : 'Analizando imagen original...',
-            ),
+            SizedBox(width: 12),
+            Text('Analizando imagen original (calidad completa)...'),
           ],
         ),
         backgroundColor: Colors.blueAccent,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
+        duration: Duration(seconds: 3),
       ),
     );
 
     try {
-      // LLAMADA AL API
       final result = await ApiService.analyzeImage(imageToAnalyze);
+
+      debugPrint(' Respuesta de la API:');
+      debugPrint(result.toString());
 
       if (mounted) {
         setState(() {
@@ -271,9 +270,31 @@ class _XRayScreenState extends State<XRayScreen> {
           _isAnalyzing = false;
         });
 
-        // Verificar si requiere atención
-        final requiresAttention =
-            result['requires_attention'] as bool? ?? false;
+        bool requiresAttention = false;
+        
+        // Opción 1: Si está en el root
+        if (result.containsKey('requires_attention')) {
+          requiresAttention = result['requires_attention'] as bool? ?? false;
+        }
+        // Opción 2: Si está dentro de fracture_analysis
+        else if (result.containsKey('fracture_analysis')) {
+          final fractureAnalysis = result['fracture_analysis'] as Map<String, dynamic>?;
+          requiresAttention = fractureAnalysis?['requires_immediate_attention'] as bool? ?? false;
+        }
+
+        // Contar fracturas
+        int totalFractures = 0;
+        
+        if (result.containsKey('total_fractures')) {
+          totalFractures = result['total_fractures'] as int? ?? 0;
+        } else if (result.containsKey('fracture_analysis')) {
+          final fractureAnalysis = result['fracture_analysis'] as Map<String, dynamic>?;
+          totalFractures = fractureAnalysis?['total_fractures'] as int? ?? 0;
+        }
+
+        debugPrint(' Análisis completado:');
+        debugPrint('  - Total fracturas: $totalFractures');
+        debugPrint('  - Requiere atención: $requiresAttention');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -289,12 +310,11 @@ class _XRayScreenState extends State<XRayScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error en análisis: $e');
+      debugPrint(' Error en análisis: $e');
 
       if (mounted) {
         setState(() {
           _isAnalyzing = false;
-          // Guardar error en el resultado
           _apiResult = {'status': 'error', 'error_message': e.toString()};
         });
 
@@ -309,6 +329,7 @@ class _XRayScreenState extends State<XRayScreen> {
       }
     }
   }
+
 
   // --- WIDGETS DE VISTA ---
 
@@ -521,7 +542,7 @@ class _XRayScreenState extends State<XRayScreen> {
             const Icon(Icons.error_outline, size: 60, color: Colors.red),
             const SizedBox(height: 12),
             const Text(
-              '❌ Error en el Análisis',
+              ' Error en el Análisis',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -574,12 +595,36 @@ class _XRayScreenState extends State<XRayScreen> {
       );
     }
 
-    // Caso 3: Análisis exitoso
-    final region = result['region']?.toString().toUpperCase() ?? 'N/A';
-    final confidence = result['confidence'] as double? ?? 0.0;
-    final detectedBones = result['detected_bones'] as int? ?? 0;
-    final fracturesDetected = result['fractures_detected'] as int? ?? 0;
-    final requiresAttention = result['requires_attention'] as bool? ?? false;
+    
+    // Extraer datos de la estructura JSON
+    String region = 'N/A';
+    double confidence = 0.0;
+    int detectedBones = 0;
+    int fracturesDetected = 0;
+    bool requiresAttention = false;
+    List<dynamic> fractureDetails = [];
+
+    // Leer region_analysis
+    if (result.containsKey('region_analysis')) {
+      final regionAnalysis = result['region_analysis'] as Map<String, dynamic>?;
+      region = regionAnalysis?['region']?.toString().toUpperCase() ?? 'N/A';
+      confidence = regionAnalysis?['confidence'] as double? ?? 0.0;
+    }
+
+    // Leer segmentation
+    if (result.containsKey('segmentation')) {
+      final segmentation = result['segmentation'] as Map<String, dynamic>?;
+      final detectedBonesList = segmentation?['detected_bones'] as List?;
+      detectedBones = detectedBonesList?.length ?? 0;
+    }
+
+    // Leer fracture_analysis
+    if (result.containsKey('fracture_analysis')) {
+      final fractureAnalysis = result['fracture_analysis'] as Map<String, dynamic>?;
+      fracturesDetected = fractureAnalysis?['total_fractures'] as int? ?? 0;
+      requiresAttention = fractureAnalysis?['requires_immediate_attention'] as bool? ?? false;
+      fractureDetails = fractureAnalysis?['fractures'] as List? ?? [];
+    }
 
     return Container(
       margin: const EdgeInsets.only(top: 20),
@@ -663,7 +708,7 @@ class _XRayScreenState extends State<XRayScreen> {
           ),
 
           // Detalles de fracturas
-          if (fracturesDetected > 0 && result['fracture_details'] != null) ...[
+          if (fracturesDetected > 0 && fractureDetails.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
               ' Detalles de Fracturas:',
@@ -674,10 +719,13 @@ class _XRayScreenState extends State<XRayScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ...List.generate((result['fracture_details'] as List).length, (
-              index,
-            ) {
-              final fracture = (result['fracture_details'] as List)[index];
+            ...List.generate(fractureDetails.length, (index) {
+              final fracture = fractureDetails[index] as Map<String, dynamic>;
+              
+              final affectedBone = fracture['affected_bone']?.toString() ?? 'Desconocido';
+              final fractureType = fracture['fracture_type'] as Map<String, dynamic>?;
+              final classification = fractureType?['classification']?.toString() ?? 'Fractura';
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
@@ -690,17 +738,18 @@ class _XRayScreenState extends State<XRayScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${index + 1}. ${fracture['description'] ?? 'Fractura'}',
+                      '${index + 1}. $classification',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.red,
+                        fontSize: 14,
                       ),
                     ),
-                    if (fracture['affected_bone'] != null)
-                      Text(
-                        'Hueso: ${fracture['affected_bone']}',
-                        style: TextStyle(fontSize: 13, color: Colors.red[900]),
-                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Hueso afectado: $affectedBone',
+                      style: TextStyle(fontSize: 13, color: Colors.red[900]),
+                    ),
                   ],
                 ),
               );

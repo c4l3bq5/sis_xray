@@ -2,14 +2,19 @@
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:http_parser/http_parser.dart'; // ¡IMPORTANTE! Agregar este import
 
 class ApiService {
   static const String _ngrokUrl =
       'https://sacha-blossomless-swelteringly.ngrok-free.dev';
 
-  /// [imageBytes] -
-
-  static Future<Map<String, dynamic>> analyzeImage(Uint8List imageBytes) async {
+  /// Analiza una imagen de radiografía
+  /// [imageBytes] - Bytes de la imagen en formato JPG/PNG
+  /// [useOriginalQuality] - Si es true, no aplica compresión adicional
+  static Future<Map<String, dynamic>> analyzeImage(
+    Uint8List imageBytes, {
+    bool useOriginalQuality = true,
+  }) async {
     final uri = Uri.parse('$_ngrokUrl/analyze');
 
     try {
@@ -19,25 +24,34 @@ class ApiService {
       final request = http.MultipartRequest('POST', uri);
 
       final multipartFile = http.MultipartFile.fromBytes(
-        'image',
+        'image', 
         imageBytes,
         filename: 'xray_analysis.jpg',
+        contentType: MediaType('image', 'jpeg'), 
       );
 
       request.files.add(multipartFile);
 
-      request.headers.addAll({'Accept': 'application/json'});
+      // Headers adicionales
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true', // Para evitar advertencias de ngrok
+      });
+
+      print(' Tipo de contenido: image/jpeg');
+      print(' Nombre de archivo: xray_analysis.jpg');
 
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 90),
         onTimeout: () {
-          throw Exception('⏱️ Timeout: El servidor tardó más de 90 segundos');
+          throw Exception(' Timeout: El servidor tardó más de 90 segundos');
         },
       );
 
       final response = await http.Response.fromStream(streamedResponse);
 
       print(' Respuesta recibida: ${response.statusCode}');
+      print(' Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
@@ -49,7 +63,7 @@ class ApiService {
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body);
         throw Exception(
-          '❌ Error de validación: ${errorData['detail'] ?? response.body}',
+          ' Error de validación: ${errorData['detail'] ?? errorData['message'] ?? response.body}',
         );
       } else if (response.statusCode == 500) {
         throw Exception(' Error del servidor: ${response.body}');
@@ -60,7 +74,7 @@ class ApiService {
       }
     } on http.ClientException catch (e) {
       throw Exception(
-        ' Error de conexión: No se pudo conectar al servidor. ¿Colab está corriendo? ($e)',
+        ' Error de conexión: No se pudo conectar al servidor. ¿Ngrok/Colab está corriendo? ($e)',
       );
     } on FormatException catch (e) {
       throw Exception(
