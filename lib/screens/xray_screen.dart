@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'camera_screen.dart';
+import 'dart:convert';
 import '../services/image_processor.dart';
 import '../services/api_service.dart'; // ¡IMPORTANTE! Importar el servicio API
 
@@ -23,6 +24,8 @@ class _XRayScreenState extends State<XRayScreen> {
   final ImagePicker _picker = ImagePicker();
   ImageSource? _selectedSource;
 
+  Uint8List? _annotatedImageBytes;
+
   // Variables de Estado para UI y API
   bool _isLoading = false; // Carga de imagen (Picker/Camera)
   bool _isProcessing = false; // Aplicación de filtros local
@@ -32,75 +35,43 @@ class _XRayScreenState extends State<XRayScreen> {
 
   // --- MÉTODOS DE MANEJO DE IMAGEN ---
 
-    Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source) async {
     try {
       setState(() {
         _isLoading = true;
-        _filtersApplied = false;
-        _apiResult = null;
       });
-
-      if (source == ImageSource.camera) {
-        final imageBytes = await Navigator.push<Uint8List>(
-          context,
-          MaterialPageRoute(builder: (context) => const CameraScreen()),
-        );
-
-        if (imageBytes != null && mounted) {
-          setState(() {
-            _imageBytes = imageBytes;
-            _processedImageBytes = null;
-            _selectedImage = null;
-            _selectedSource = source;
-            _isLoading = false;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto tomada correctamente con la cámara'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          _applyFilters();
-        } else {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-        return;
-      }
 
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 90,
       );
 
       if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
+        final originalBytes = await pickedFile.readAsBytes();
+
+        // ✅ Aplicar escala de grises también a imágenes de galería
+        final processedBytes = await ImageProcessor.applyGrayscale(
+          originalBytes,
+        );
+
         if (!mounted) return;
-
-        debugPrint(' Imagen capturada: ${(bytes.length / 1024).toStringAsFixed(1)} KB');
-        debugPrint(' Primeros bytes: ${bytes.sublist(0, min(10, bytes.length))}');
-
         setState(() {
-          _imageBytes = bytes;
-          _processedImageBytes = null;
-          _selectedImage = null;
-          _isLoading = false;
+          _imageBytes = processedBytes;
+          _selectedImage = File(pickedFile.path);
           _selectedSource = source;
+          _isLoading = false;
         });
 
-        if (mounted) {
-          final sourceName = source == ImageSource.camera ? 'cámara' : 'galería';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Imagen capturada desde $sourceName (calidad original)'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Imagen procesada ${source == ImageSource.camera ? 'desde cámara' : 'desde galería'}',
             ),
-          );
-          _applyFilters();
-        }
+            backgroundColor: Colors.green,
+          ),
+        );
       } else {
         setState(() {
           _isLoading = false;
@@ -113,7 +84,6 @@ class _XRayScreenState extends State<XRayScreen> {
           SnackBar(
             content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -156,7 +126,7 @@ class _XRayScreenState extends State<XRayScreen> {
         );
       }
 
-      final processed = await ImageProcessor.applyInfinixFilters(_imageBytes!);
+      final processed = await ImageProcessor.applyGrayscale(_imageBytes!);
 
       if (mounted) {
         setState(() {
@@ -196,6 +166,7 @@ class _XRayScreenState extends State<XRayScreen> {
       _selectedImage = null;
       _imageBytes = null;
       _processedImageBytes = null;
+      _annotatedImageBytes = null;
       _isLoading = false;
       _selectedSource = null;
       _filtersApplied = false;
@@ -234,7 +205,9 @@ class _XRayScreenState extends State<XRayScreen> {
     });
 
     debugPrint(' Enviando imagen ORIGINAL para análisis');
-    debugPrint(' Tamaño: ${(imageToAnalyze.length / 1024).toStringAsFixed(1)} KB');
+    debugPrint(
+      ' Tamaño: ${(imageToAnalyze.length / 1024).toStringAsFixed(1)} KB',
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -268,27 +241,40 @@ class _XRayScreenState extends State<XRayScreen> {
         setState(() {
           _apiResult = result;
           _isAnalyzing = false;
+
+          if (result.containsKey('annotated_image_base64')) {
+            final base64String = result['annotated_image_base64'] as String;
+            _annotatedImageBytes = base64Decode(base64String);
+            debugPrint(' Imagen anotada recibida');
+          } else {
+            _annotatedImageBytes = null;
+            debugPrint(' No hay fracturas, sin imagen anotada');
+          }
         });
 
         bool requiresAttention = false;
-        
+
         // Opción 1: Si está en el root
         if (result.containsKey('requires_attention')) {
           requiresAttention = result['requires_attention'] as bool? ?? false;
         }
         // Opción 2: Si está dentro de fracture_analysis
         else if (result.containsKey('fracture_analysis')) {
-          final fractureAnalysis = result['fracture_analysis'] as Map<String, dynamic>?;
-          requiresAttention = fractureAnalysis?['requires_immediate_attention'] as bool? ?? false;
+          final fractureAnalysis =
+              result['fracture_analysis'] as Map<String, dynamic>?;
+          requiresAttention =
+              fractureAnalysis?['requires_immediate_attention'] as bool? ??
+              false;
         }
 
         // Contar fracturas
         int totalFractures = 0;
-        
+
         if (result.containsKey('total_fractures')) {
           totalFractures = result['total_fractures'] as int? ?? 0;
         } else if (result.containsKey('fracture_analysis')) {
-          final fractureAnalysis = result['fracture_analysis'] as Map<String, dynamic>?;
+          final fractureAnalysis =
+              result['fracture_analysis'] as Map<String, dynamic>?;
           totalFractures = fractureAnalysis?['total_fractures'] as int? ?? 0;
         }
 
@@ -330,6 +316,186 @@ class _XRayScreenState extends State<XRayScreen> {
     }
   }
 
+  Widget _buildImageComparison() {
+    if (_annotatedImageBytes == null || _imageBytes == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            ' Comparación de Imágenes',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueAccent,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Imagen Original
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Imagen Original',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[400]!, width: 2),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(
+                    _imageBytes!,
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Imagen Analizada
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    'Imagen Analizada',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Con Marcas',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red, width: 3),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(
+                    _annotatedImageBytes!,
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Leyenda
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '🔍 Leyenda de Marcas:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                _buildLegendItem(
+                  Colors.red,
+                  'Recuadro Rojo',
+                  'Fractura confirmada',
+                ),
+                _buildLegendItem(
+                  Colors.yellow,
+                  'Recuadro Amarillo',
+                  'Luxación',
+                ),
+                _buildLegendItem(
+                  Colors.orange,
+                  'Recuadro Naranja',
+                  'Sospecha de microfractura',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.3),
+              border: Border.all(color: color, width: 2),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(text: description),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // --- WIDGETS DE VISTA ---
 
@@ -595,7 +761,6 @@ class _XRayScreenState extends State<XRayScreen> {
       );
     }
 
-    
     // Extraer datos de la estructura JSON
     String region = 'N/A';
     double confidence = 0.0;
@@ -620,9 +785,11 @@ class _XRayScreenState extends State<XRayScreen> {
 
     // Leer fracture_analysis
     if (result.containsKey('fracture_analysis')) {
-      final fractureAnalysis = result['fracture_analysis'] as Map<String, dynamic>?;
+      final fractureAnalysis =
+          result['fracture_analysis'] as Map<String, dynamic>?;
       fracturesDetected = fractureAnalysis?['total_fractures'] as int? ?? 0;
-      requiresAttention = fractureAnalysis?['requires_immediate_attention'] as bool? ?? false;
+      requiresAttention =
+          fractureAnalysis?['requires_immediate_attention'] as bool? ?? false;
       fractureDetails = fractureAnalysis?['fractures'] as List? ?? [];
     }
 
@@ -721,10 +888,13 @@ class _XRayScreenState extends State<XRayScreen> {
             const SizedBox(height: 8),
             ...List.generate(fractureDetails.length, (index) {
               final fracture = fractureDetails[index] as Map<String, dynamic>;
-              
-              final affectedBone = fracture['affected_bone']?.toString() ?? 'Desconocido';
-              final fractureType = fracture['fracture_type'] as Map<String, dynamic>?;
-              final classification = fractureType?['classification']?.toString() ?? 'Fractura';
+
+              final affectedBone =
+                  fracture['affected_bone']?.toString() ?? 'Desconocido';
+              final fractureType =
+                  fracture['fracture_type'] as Map<String, dynamic>?;
+              final classification =
+                  fractureType?['classification']?.toString() ?? 'Fractura';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -895,6 +1065,7 @@ class _XRayScreenState extends State<XRayScreen> {
                       color: Colors.blueAccent,
                     ),
                   ),
+
                   SizedBox(height: 8),
                   Text(
                     'Selecciona una imagen desde tu galería o toma una foto con la cámara',
@@ -1048,6 +1219,8 @@ class _XRayScreenState extends State<XRayScreen> {
                   ),
 
                 if (_apiResult != null) _buildAnalysisResult(_apiResult!),
+
+                if (_annotatedImageBytes != null) _buildImageComparison(),
 
                 const SizedBox(height: 20),
 

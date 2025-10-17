@@ -1,86 +1,84 @@
-import 'dart:async';
 import 'dart:typed_data';
 import 'dart:html' as html;
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 class ImageProcessor {
-  /// Método para web usando Canvas (más rápido)
-  static Future<Uint8List> applyInfinixFilters(Uint8List imageBytes) async {
+  /// Aplica solo escala de grises para web
+  static Future<Uint8List> applyGrayscale(Uint8List imageBytes) async {
     try {
-      final html.Blob blob = html.Blob([imageBytes]);
-      final String url = html.Url.createObjectUrlFromBlob(blob);
+      // En web, no aplicamos filtros, devolvemos la imagen original
+      // O si quieres escala de grises en web también:
+      return _applyGrayscaleWeb(imageBytes);
+    } catch (e) {
+      debugPrint('Error aplicando escala de grises web: $e');
+      return imageBytes;
+    }
+  }
 
-      final completer = Completer<Uint8List>();
-      final html.ImageElement image = html.ImageElement();
+  static Future<Uint8List> _applyGrayscaleWeb(Uint8List imageBytes) async {
+    final html.Blob blob = html.Blob([imageBytes]);
+    final String url = html.Url.createObjectUrlFromBlob(blob);
 
-      image.onLoad.listen((_) async {
-        try {
-          final html.CanvasElement canvas = html.CanvasElement(
-            width: image.width!,
-            height: image.height!,
-          );
+    final completer = Completer<Uint8List>();
+    final html.ImageElement image = html.ImageElement();
 
-          final html.CanvasRenderingContext2D ctx = canvas.context2D;
+    image.onLoad.listen((_) async {
+      final html.CanvasElement canvas = html.CanvasElement(
+        width: image.width!,
+        height: image.height!,
+      );
 
-          // Dibujar imagen original
-          ctx.drawImage(image, 0, 0);
+      final html.CanvasRenderingContext2D ctx = canvas.context2D;
 
-          // Aplicar filtros CSS que simulan los efectos
-          // grayscale(100%) = escala de grises
-          // contrast(120%) = +20% contraste
-          // brightness(70%) = -30% brillo
-          ctx.filter = 'grayscale(100%) contrast(120%) brightness(70%)';
-          ctx.drawImage(image, 0, 0);
-          ctx.filter = 'none';
+      // Dibujar imagen original
+      ctx.drawImage(image, 0, 0);
 
-          // Convertir canvas a Blob y luego a Uint8List
-          final resultBlob = await canvas.toBlob('image/jpeg', 0.85);
+      // Aplicar filtro de escala de grises
+      final imageData = ctx.getImageData(0, 0, canvas.width!, canvas.height!);
+      final data = imageData.data;
 
-          if (resultBlob != null) {
-            final reader = html.FileReader();
+      for (int i = 0; i < data.length; i += 4) {
+        final gray =
+            (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114)
+                .round();
+        data[i] = gray; // R
+        data[i + 1] = gray; // G
+        data[i + 2] = gray; // B
+      }
 
-            reader.onLoadEnd.listen((e) {
-              final result = reader.result;
-              if (result != null) {
-                completer.complete(
-                  Uint8List.fromList(List<int>.from(result as List<dynamic>)),
-                );
-              } else {
-                debugPrint('FileReader result es null, usando imagen original');
-                completer.complete(imageBytes);
-              }
-            });
+      ctx.putImageData(imageData, 0, 0);
 
-            reader.onError.listen((e) {
-              debugPrint('Error en FileReader: $e');
+      // Convertir a Blob
+      canvas.toBlob('image/jpeg', 0.9).then((blob) {
+        if (blob != null) {
+          final reader = html.FileReader();
+          reader.onLoadEnd.listen((e) {
+            final result = reader.result;
+            if (result != null) {
+              completer.complete(
+                Uint8List.fromList(List<int>.from(result as List<dynamic>)),
+              );
+            } else {
               completer.complete(imageBytes);
-            });
-
-            reader.readAsArrayBuffer(resultBlob);
-          } else {
-            debugPrint('toBlob retornó null, usando imagen original');
-            completer.complete(imageBytes);
-          }
-        } catch (e) {
-          debugPrint('Error en procesamiento de canvas: $e');
+            }
+          });
+          reader.readAsArrayBuffer(blob);
+        } else {
           completer.complete(imageBytes);
         }
       });
+    });
 
-      image.onError.listen((e) {
-        debugPrint('Error cargando imagen: $e');
-        completer.complete(imageBytes);
-      });
+    image.onError.listen((_) {
+      completer.complete(imageBytes);
+    });
 
-      image.src = url;
+    image.src = url;
 
-      final result = await completer.future;
-      html.Url.revokeObjectUrl(url);
+    final result = await completer.future;
+    html.Url.revokeObjectUrl(url);
 
-      return result;
-    } catch (e) {
-      debugPrint('Error aplicando filtros web: $e');
-      return imageBytes;
-    }
+    return result;
   }
 }

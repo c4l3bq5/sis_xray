@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/image_processor.dart'; //  Importar el procesador
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -11,6 +12,7 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   bool _isCameraActive = true;
+  bool _isProcessing = false; //  Nuevo estado para procesamiento
 
   Future<Uint8List?> _capturePhotoMobile() async {
     try {
@@ -19,14 +21,34 @@ class _CameraScreenState extends State<CameraScreen> {
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
         imageQuality: 90,
+        maxWidth: 1200, //  Limitar tamaño para mejor performance
+        maxHeight: 1200,
       );
 
       if (photo != null) {
-        return await photo.readAsBytes();
+        final originalBytes = await photo.readAsBytes();
+
+        // ✅ Aplicar escala de grises
+        setState(() {
+          _isProcessing = true;
+        });
+
+        final processedBytes = await ImageProcessor.applyGrayscale(
+          originalBytes,
+        );
+
+        setState(() {
+          _isProcessing = false;
+        });
+
+        return processedBytes;
       }
       return null;
     } catch (e) {
       debugPrint('Error capturando foto en móvil: $e');
+      setState(() {
+        _isProcessing = false;
+      });
       return null;
     }
   }
@@ -75,40 +97,70 @@ class _CameraScreenState extends State<CameraScreen> {
 
               const SizedBox(height: 20),
 
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Colors.blue[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blueAccent, width: 2),
-                ),
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.camera_alt,
-                        size: 80,
-                        color: Colors.blueAccent,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Presiona el botón para\nabrir la cámara',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+              //  Mostrar indicador de procesamiento
+              if (_isProcessing) ...[
+                Container(
+                  height: 300,
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blueAccent, width: 2),
+                  ),
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: Colors.blueAccent),
+                        SizedBox(height: 16),
+                        Text(
+                          'Procesando imagen...\nAplicando escala de grises',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ] else ...[
+                Container(
+                  height: 300,
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blueAccent, width: 2),
+                  ),
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.camera_alt,
+                          size: 80,
+                          color: Colors.blueAccent,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Presiona el botón para\nabrir la cámara',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 30),
 
-              if (_isCameraActive) ...[
+              if (_isCameraActive && !_isProcessing) ...[
                 ElevatedButton.icon(
                   onPressed: () async {
                     final imageBytes = await _capturePhotoMobile();
@@ -191,7 +243,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '• Coloca la radiografía sobre una superficie plana\n• Asegura buena iluminación\n• Mantén la cámara estable al capturar',
+                      '• Coloca la radiografía sobre una superficie plana\n• Asegura buena iluminación\n• Mantén la cámara estable al capturar\n• La imagen se convertirá automáticamente a escala de grises',
                       style: TextStyle(color: Colors.blueGrey, fontSize: 11),
                     ),
                   ],
