@@ -1,5 +1,7 @@
-// widgets/responsive_navbar.dart
+// widgets/responsive_navbar.dart - VERSIÓN DEFINITIVA
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../screens/login_screen.dart';
 
 class ResponsiveNavBar extends StatelessWidget {
   final String currentUser;
@@ -13,32 +15,112 @@ class ResponsiveNavBar extends StatelessWidget {
     required this.enTurno,
   });
 
+  Future<void> _handleLogout(BuildContext context) async {
+    final authService = AuthService();
+
+    // Guardar el navigator antes de cualquier operación async
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // Mostrar confirmación
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Sí, cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Cerrar el drawer
+    navigator.pop();
+
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (loadingContext) => PopScope(
+        canPop: false,
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+        ),
+      ),
+    );
+
+    try {
+      // Realizar logout con timeout
+      await authService.logout().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('Timeout en logout, forzando cierre de sesión');
+        },
+      );
+
+      // Navegar al login eliminando todas las rutas
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (ctx) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      print('Error en logout: $e');
+
+      // Cerrar loading
+      navigator.pop();
+
+      // Mostrar error
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Reintentar',
+            textColor: Colors.white,
+            onPressed: () => _handleLogout(context),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Header del drawer con información del usuario - CORREGIDO
           DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blueAccent),
+            decoration: const BoxDecoration(color: Colors.blueAccent),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end, // Alinea al fondo
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Row(
                   children: [
-                    // Avatar más pequeño y mejor posicionado
                     Container(
                       width: 50,
                       height: 50,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Text(
-                          currentUser.substring(0, 1).toUpperCase(),
+                          currentUser.isNotEmpty
+                              ? currentUser.substring(0, 1).toUpperCase()
+                              : 'U',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -47,12 +129,11 @@ class ResponsiveNavBar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12), // Espacio adecuado
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Nombre
                           Text(
                             currentUser,
                             style: const TextStyle(
@@ -63,7 +144,6 @@ class ResponsiveNavBar extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          // Rol
                           Text(
                             userRole,
                             style: const TextStyle(
@@ -72,7 +152,6 @@ class ResponsiveNavBar extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          // Estado de turno
                           Row(
                             children: [
                               Container(
@@ -102,104 +181,69 @@ class ResponsiveNavBar extends StatelessWidget {
             ),
           ),
 
-          // Items del menú (se mantienen igual)
+          // Items del menú
           _buildDrawerItem(
-            context,
             icon: Icons.home,
             title: 'Inicio',
-            onTap: () {
-              Navigator.popAndPushNamed(context, '/home');
-            },
+            onTap: () => Navigator.pop(context),
           ),
 
           _buildDrawerItem(
-            context,
             icon: Icons.people,
             title: 'Usuarios',
-            onTap: () {
-              Navigator.popAndPushNamed(context, '/usuarios');
-            },
+            onTap: () => Navigator.pop(context),
           ),
 
           _buildDrawerItem(
-            context,
             icon: Icons.personal_injury,
             title: 'Pacientes',
-            onTap: () {
-              Navigator.popAndPushNamed(context, '/pacientes');
-            },
+            onTap: () => Navigator.pop(context),
           ),
 
           _buildDrawerItem(
-            context,
             icon: Icons.monitor_heart,
             title: 'Monitoreo',
+            onTap: () => Navigator.pop(context),
+          ),
+
+          _buildDrawerItem(
+            icon: Icons.upload_file,
+            title: 'Analizar Radiografía',
             onTap: () {
-              Navigator.popAndPushNamed(context, '/monitoreo');
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/xray');
             },
           ),
 
           const Divider(),
 
-          _buildDrawerItem(
-            context,
-            icon: Icons.logout,
-            title: 'Cerrar Sesión',
-            onTap: () {
-              _showLogoutDialog(context);
-            },
+          // Item de logout
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red, size: 22),
+            title: const Text(
+              'Cerrar Sesión',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () => _handleLogout(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDrawerItem(
-    BuildContext context, {
+  Widget _buildDrawerItem({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: Colors.blueAccent,
-        size: 22,
-      ), // Iconos un poco más pequeños
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 14), // Texto un poco más pequeño
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-      ), // Padding consistente
-      minLeadingWidth: 0, // Reduce el espacio mínimo del leading
+      leading: Icon(icon, color: Colors.blueAccent, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
       onTap: onTap,
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Cerrar Sesión'),
-          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Cerrar dialog
-                Navigator.popAndPushNamed(context, '/login');
-              },
-              child: const Text('Cerrar Sesión'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

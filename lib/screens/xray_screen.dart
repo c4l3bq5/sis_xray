@@ -39,8 +39,43 @@ class _XRayScreenState extends State<XRayScreen> {
     try {
       setState(() {
         _isLoading = true;
+        _filtersApplied = false;
+        _apiResult = null;
       });
 
+      // ✅ LÓGICA DE CÁMARA - DEL PRIMER CÓDIGO QUE FUNCIONABA
+      if (source == ImageSource.camera) {
+        final imageBytes = await Navigator.push<Uint8List>(
+          context,
+          MaterialPageRoute(builder: (context) => const CameraScreen()),
+        );
+
+        if (imageBytes != null && mounted) {
+          setState(() {
+            _imageBytes = imageBytes;
+            _processedImageBytes = null;
+            _selectedImage = null;
+            _selectedSource = source;
+            _isLoading = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Foto tomada correctamente con la cámara'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _applyFilters(); // Aplicar filtros automáticamente
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // ✅ LÓGICA DE GALERÍA - DEL SEGUNDO CÓDIGO
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
         maxWidth: 1200,
@@ -51,7 +86,7 @@ class _XRayScreenState extends State<XRayScreen> {
       if (pickedFile != null) {
         final originalBytes = await pickedFile.readAsBytes();
 
-        // ✅ Aplicar escala de grises también a imágenes de galería
+        // Aplicar escala de grises también a imágenes de galería
         final processedBytes = await ImageProcessor.applyGrayscale(
           originalBytes,
         );
@@ -100,31 +135,6 @@ class _XRayScreenState extends State<XRayScreen> {
       setState(() {
         _isProcessing = true;
       });
-
-      // Mostrar indicador
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text('Aplicando filtros de mejora...'),
-              ],
-            ),
-            backgroundColor: Colors.blueAccent,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
 
       final processed = await ImageProcessor.applyGrayscale(_imageBytes!);
 
@@ -1065,7 +1075,6 @@ class _XRayScreenState extends State<XRayScreen> {
                       color: Colors.blueAccent,
                     ),
                   ),
-
                   SizedBox(height: 8),
                   Text(
                     'Selecciona una imagen desde tu galería o toma una foto con la cámara',
@@ -1264,7 +1273,7 @@ class _XRayScreenState extends State<XRayScreen> {
                             ),
                             if (_filtersApplied)
                               const Text(
-                                'Filtros: Escala de grises, contraste +20%, brillo -30%',
+                                'Filtros: Escala de grises aplicada',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.blueGrey,

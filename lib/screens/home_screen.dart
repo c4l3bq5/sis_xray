@@ -1,4 +1,4 @@
-// screens/home_screen.dart
+// screens/home_screen.dart - VERSIÓN SIMPLIFICADA
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_navbar.dart';
@@ -25,6 +25,7 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Sistema de Traumatología'),
         backgroundColor: Colors.blueAccent,
         actions: [
+          // ✅ SOLO el estado de turno, SIN botón de logout
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
@@ -62,11 +63,8 @@ class HomeScreen extends StatelessWidget {
           children: [
             _buildWelcomeHeader(greeting, context),
             const SizedBox(height: 20),
-            _buildQuickStats(),
             const SizedBox(height: 20),
             _buildQuickActions(context),
-            const SizedBox(height: 20),
-            _buildNextAppointments(),
           ],
         ),
       ),
@@ -114,32 +112,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickStats() {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _StatCard(
-          title: 'Pacientes Hoy',
-          value: '12',
-          icon: Icons.people,
-          color: Colors.green,
-        ),
-        _StatCard(
-          title: 'Citas Pendientes',
-          value: '5',
-          icon: Icons.event,
-          color: Colors.orange,
-        ),
-        _StatCard(
-          title: 'Radiografías',
-          value: '8',
-          icon: Icons.photo,
-          color: Colors.purple,
-        ),
-      ],
-    );
-  }
-
   Widget _buildQuickActions(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,145 +128,51 @@ class HomeScreen extends StatelessWidget {
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 3, // Más columnas para botones más pequeños
-          crossAxisSpacing: 10, // Menos espacio entre botones
-          mainAxisSpacing: 8,
-          childAspectRatio: 1.0, // Más compactos
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.0,
           children: [
             _ActionCard(
-              title: 'Analizar\nRadiografía',
+              title: 'Analizar Radiografía',
               icon: Icons.upload_file,
-              iconSize: 24, // Icono mucho más pequeño
+              iconSize: 32,
               color: Colors.blueAccent,
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => XRayScreen()),
+                  MaterialPageRoute(builder: (context) => const XRayScreen()),
                 );
               },
             ),
             _ActionCard(
-              title: 'Nuevo\nPaciente',
-              icon: Icons.person_add,
-              iconSize: 24,
+              title: 'Gestión de Pacientes',
+              icon: Icons.personal_injury,
+              iconSize: 32,
               color: Colors.green,
               onTap: () {
-                // Navegar a pantalla de nuevo paciente
+                // Navegar a gestión de pacientes
               },
             ),
             _ActionCard(
-              title: 'Ver\nHistoriales',
+              title: 'Historial Médico',
               icon: Icons.medical_services,
-              iconSize: 24,
+              iconSize: 32,
               color: Colors.orange,
               onTap: () {
-                // Navegar a historiales
+                // Navegar a historial médico
               },
             ),
             _ActionCard(
-              title: 'Agendar\nCita',
-              icon: Icons.calendar_today,
-              iconSize: 24,
+              title: 'Reportes',
+              icon: Icons.bar_chart,
+              iconSize: 32,
               color: Colors.purple,
               onTap: () {
-                // Navegar a agendar cita
-              },
-            ),
-            _ActionCard(
-              title: 'Radiografías',
-              icon: Icons.photo_library,
-              iconSize: 24,
-              color: Colors.red,
-              onTap: () {
-                // Navegar a radiografías
-              },
-            ),
-            _ActionCard(
-              title: 'Monitoreo',
-              icon: Icons.monitor_heart,
-              iconSize: 24,
-              color: Colors.teal,
-              onTap: () {
-                // Navegar a monitoreo
+                // Navegar a reportes
               },
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNextAppointments() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Próximas Citas',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueAccent,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const CircleAvatar(
-                    radius: 16, // Avatar más pequeño
-                    backgroundColor: Colors.blueAccent,
-                    child: Icon(Icons.person, color: Colors.white, size: 16),
-                  ),
-                  title: const Text(
-                    'Juan Pérez',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  subtitle: const Text(
-                    'Consulta de seguimiento',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  trailing: Chip(
-                    label: const Text(
-                      '10:30 AM',
-                      style: TextStyle(fontSize: 10, color: Colors.white),
-                    ),
-                    backgroundColor: Colors.blueAccent,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  dense: true, // Hace el ListTile más compacto
-                ),
-                const Divider(height: 8),
-                ListTile(
-                  leading: const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.green,
-                    child: Icon(Icons.person, color: Colors.white, size: 16),
-                  ),
-                  title: const Text(
-                    'María García',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  subtitle: const Text(
-                    'Evaluación post-operatoria',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  trailing: Chip(
-                    label: const Text(
-                      '11:45 AM',
-                      style: TextStyle(fontSize: 10, color: Colors.white),
-                    ),
-                    backgroundColor: Colors.green,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  dense: true,
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );
@@ -326,22 +204,23 @@ class _StatCard extends StatelessWidget {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 2),
+            Icon(icon, size: 24, color: color),
+            const SizedBox(height: 8),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.blueAccent,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               title,
-              style: const TextStyle(fontSize: 8, color: Colors.grey),
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -369,21 +248,21 @@ class _ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 3,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(6), // Padding mínimo
+          padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: iconSize, color: color),
-              const SizedBox(height: 4),
+              const SizedBox(height: 12),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 10, // Texto muy pequeño
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
