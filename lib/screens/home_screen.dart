@@ -1,4 +1,4 @@
-// screens/home_screen.dart - VERSIÓN SIMPLIFICADA
+// screens/home_screen.dart - CON RESTRICCIONES DE ROL
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_navbar.dart';
@@ -16,16 +16,30 @@ class HomeScreen extends StatelessWidget {
     required this.enTurno,
   });
 
+  bool get _esMedico {
+    return userRole.toLowerCase().contains('médico') ||
+        userRole.toLowerCase().contains('medico') ||
+        userRole.toLowerCase().contains('interno');
+  }
+
+  bool _esAdministrador() {
+    return userRole.toLowerCase().contains('administrador');
+  }
+
   @override
   Widget build(BuildContext context) {
     final greeting = _getGreeting(DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sistema de Traumatología'),
+        title: const Text(
+          'Sistema de Traumatología',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         backgroundColor: Colors.blueAccent,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 2,
         actions: [
-          // ✅ SOLO el estado de turno, SIN botón de logout
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
@@ -36,7 +50,7 @@ class HomeScreen extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.circle, color: Colors.white, size: 8),
+                const Icon(Icons.circle, color: Colors.white, size: 8),
                 const SizedBox(width: 6),
                 Text(
                   enTurno ? 'En turno' : 'Fuera',
@@ -62,7 +76,6 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeHeader(greeting, context),
-            const SizedBox(height: 20),
             const SizedBox(height: 20),
             _buildQuickActions(context),
           ],
@@ -113,6 +126,83 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    // Lista de acciones según el rol
+    final List<Widget> actions = [];
+
+    // Solo administradores pueden gestionar usuarios
+    if (_esAdministrador()) {
+      actions.add(
+        _ActionCard(
+          title: 'Gestión de Usuarios',
+          icon: Icons.people,
+          iconSize: 32,
+          color: Colors.purple,
+          onTap: () {
+            Navigator.pushNamed(context, '/users');
+          },
+        ),
+      );
+    }
+
+    // Todos pueden gestionar pacientes
+    actions.add(
+      _ActionCard(
+        title: 'Gestión de Pacientes',
+        icon: Icons.personal_injury,
+        iconSize: 32,
+        color: Colors.green,
+        onTap: () {
+          Navigator.pushNamed(context, '/patients');
+        },
+      ),
+    );
+
+    // Solo médicos e internos pueden analizar radiografías
+    if (_esMedico) {
+      actions.add(
+        _ActionCard(
+          title: 'Analizar Radiografía',
+          icon: Icons.upload_file,
+          iconSize: 32,
+          color: Colors.blueAccent,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const XRayScreen()),
+            );
+          },
+        ),
+      );
+    }
+
+    // Solo admin puede ver reportes (logs)
+    if (_esAdministrador()) {
+      actions.add(
+        _ActionCard(
+          title: 'Reportes',
+          icon: Icons.assessment,
+          iconSize: 32,
+          color: Colors.teal,
+          onTap: () {
+            Navigator.pushNamed(context, '/logs');
+          },
+        ),
+      );
+    }
+
+    // Historial médico para todos (próximamente)
+    actions.add(
+      _ActionCard(
+        title: 'Historial Médico',
+        icon: Icons.medical_services,
+        iconSize: 32,
+        color: Colors.orange,
+        onTap: () {
+          Navigator.pushNamed(context, '/medical-history');
+        },
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -132,47 +222,7 @@ class HomeScreen extends StatelessWidget {
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: 1.0,
-          children: [
-            _ActionCard(
-              title: 'Analizar Radiografía',
-              icon: Icons.upload_file,
-              iconSize: 32,
-              color: Colors.blueAccent,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const XRayScreen()),
-                );
-              },
-            ),
-            _ActionCard(
-              title: 'Gestión de Pacientes',
-              icon: Icons.personal_injury,
-              iconSize: 32,
-              color: Colors.green,
-              onTap: () {
-                // Navegar a gestión de pacientes
-              },
-            ),
-            _ActionCard(
-              title: 'Historial Médico',
-              icon: Icons.medical_services,
-              iconSize: 32,
-              color: Colors.orange,
-              onTap: () {
-                // Navegar a historial médico
-              },
-            ),
-            _ActionCard(
-              title: 'Reportes',
-              icon: Icons.bar_chart,
-              iconSize: 32,
-              color: Colors.purple,
-              onTap: () {
-                // Navegar a reportes
-              },
-            ),
-          ],
+          children: actions,
         ),
       ],
     );
@@ -183,50 +233,6 @@ class HomeScreen extends StatelessWidget {
     if (hour < 12) return 'Buenos días';
     if (hour < 18) return 'Buenas tardes';
     return 'Buenas noches';
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

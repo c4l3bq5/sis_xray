@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'screens/home_screen.dart';
 import 'screens/xray_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/logs_screen.dart';
+import 'screens/users_screen.dart';
 import 'services/auth_service.dart';
 import 'models/auth_models.dart';
 
@@ -26,103 +27,19 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const AuthWrapper(),
-      onGenerateRoute: (settings) {
-        switch (settings.name) {
-          case '/home':
-            return MaterialPageRoute(
-              builder: (context) =>
-                  const ProtectedRoute(child: HomeScreenWrapper()),
-            );
-          case '/xray':
-            return MaterialPageRoute(
-              builder: (context) => const ProtectedRoute(child: XRayScreen()),
-            );
-          case '/login':
-            return MaterialPageRoute(builder: (context) => const LoginScreen());
-          default:
-            return MaterialPageRoute(builder: (context) => const AuthWrapper());
-        }
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/xray': (context) => const XRayScreen(),
+        '/users': (context) => const UsersScreen(), // ✅ NUEVO
+        '/patients': (context) => const Scaffold(
+          body: Center(child: Text('Pacientes - Próximamente')),
+        ),
+        '/medical-history': (context) => const Scaffold(
+          body: Center(child: Text('Historial Médico - Próximamente')),
+        ),
+        '/logs': (context) => const LogsScreen(),
       },
     );
-  }
-}
-
-class HomeScreenWrapper extends StatelessWidget {
-  const HomeScreenWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final user = ModalRoute.of(context)!.settings.arguments as UserData?;
-    return HomeScreen(
-      userName: user?.nombreCompleto ?? 'Usuario',
-      userRole: user?.rolFormateado ?? 'Rol no asignado',
-      enTurno: true,
-    );
-  }
-}
-
-class ProtectedRoute extends StatefulWidget {
-  final Widget child;
-  const ProtectedRoute({super.key, required this.child});
-
-  @override
-  _ProtectedRouteState createState() => _ProtectedRouteState();
-}
-
-class _ProtectedRouteState extends State<ProtectedRoute> {
-  final AuthService _authService = AuthService();
-  bool _isChecking = true;
-  bool _isAuthenticated = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthentication();
-  }
-
-  Future<void> _checkAuthentication() async {
-    try {
-      final bool isValid = await _authService.verifyToken();
-      setState(() {
-        _isAuthenticated = isValid;
-        _isChecking = false;
-      });
-
-      if (!isValid) {
-        // Redirigir al login si no está autenticado
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacementNamed(context, '/login');
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isAuthenticated = false;
-        _isChecking = false;
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/login');
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isChecking) {
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Verificando acceso...'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return _isAuthenticated ? widget.child : const LoginScreen();
   }
 }
 
@@ -148,14 +65,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _checkAuthentication() async {
     try {
       final bool isValid = await _authService.verifyToken();
-      final UserData? user = await _authService.getUserData();
 
-      setState(() {
-        _isAuthenticated = isValid;
-        _currentUser = user;
-        _isLoading = false;
-      });
+      if (isValid) {
+        final UserData? user = await _authService.getUserData();
+        setState(() {
+          _isAuthenticated = true;
+          _currentUser = user;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isAuthenticated = false;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
+      print('Error en verificación: $e');
       setState(() {
         _isAuthenticated = false;
         _isLoading = false;
@@ -166,26 +91,40 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Verificando sesión...'),
-            ],
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.blue[700]!, Colors.blue[900]!],
+            ),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                SizedBox(height: 20),
+                Text(
+                  'Verificando sesión...',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return _isAuthenticated
-        ? HomeScreen(
-            userName: _currentUser?.nombreCompleto ?? 'Usuario',
-            userRole: _currentUser?.rolFormateado ?? 'Rol no asignado',
-            enTurno: true,
-          )
-        : const LoginScreen();
+    if (_isAuthenticated && _currentUser != null) {
+      return HomeScreen(
+        userName: _currentUser!.nombreCompleto,
+        userRole: _currentUser!.rolFormateado,
+        enTurno: true,
+      );
+    }
+
+    return const LoginScreen();
   }
 }

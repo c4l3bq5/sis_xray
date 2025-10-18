@@ -1,4 +1,4 @@
-// widgets/responsive_navbar.dart - VERSIÓN DEFINITIVA
+// widgets/responsive_navbar.dart - VERSIÓN DEFINITIVA CON RESTRICCIONES
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../screens/login_screen.dart';
@@ -15,14 +15,22 @@ class ResponsiveNavBar extends StatelessWidget {
     required this.enTurno,
   });
 
+  bool get _esMedico {
+    final roleLower = userRole.toLowerCase();
+    return roleLower.contains('médico') ||
+        roleLower.contains('medico') ||
+        roleLower.contains('interno');
+  }
+
+  bool get _esAdministrador {
+    return userRole.toLowerCase().contains('administrador');
+  }
+
   Future<void> _handleLogout(BuildContext context) async {
     final authService = AuthService();
-
-    // Guardar el navigator antes de cualquier operación async
     final navigator = Navigator.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    // Mostrar confirmación
     final bool? confirm = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -44,10 +52,8 @@ class ResponsiveNavBar extends StatelessWidget {
 
     if (confirm != true) return;
 
-    // Cerrar el drawer
     navigator.pop();
 
-    // Mostrar loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -60,26 +66,20 @@ class ResponsiveNavBar extends StatelessWidget {
     );
 
     try {
-      // Realizar logout con timeout
       await authService.logout().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          print('Timeout en logout, forzando cierre de sesión');
+          print('⚠️ Timeout en logout, forzando cierre de sesión');
         },
       );
 
-      // Navegar al login eliminando todas las rutas
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (ctx) => const LoginScreen()),
         (route) => false,
       );
     } catch (e) {
-      print('Error en logout: $e');
-
-      // Cerrar loading
+      print('❌ Error en logout: $e');
       navigator.pop();
-
-      // Mostrar error
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -206,14 +206,16 @@ class ResponsiveNavBar extends StatelessWidget {
             onTap: () => Navigator.pop(context),
           ),
 
-          _buildDrawerItem(
-            icon: Icons.upload_file,
-            title: 'Analizar Radiografía',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/xray');
-            },
-          ),
+          // ✅ SOLO MOSTRAR SI ES MÉDICO O INTERNO
+          if (_esMedico)
+            _buildDrawerItem(
+              icon: Icons.upload_file,
+              title: 'Analizar Radiografía',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/xray');
+              },
+            ),
 
           const Divider(),
 
