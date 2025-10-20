@@ -262,7 +262,7 @@ class ResponsiveNavBar extends StatelessWidget {
 
     // Si existe el callback, usarlo (ESTE ES EL CAMBIO CLAVE)
     if (onLogout != null) {
-      print('✅ Usando callback onLogout del AuthWrapper');
+      print('  Usando callback onLogout del AuthWrapper');
 
       // Mostrar loading dialog
       showDialog(
@@ -295,7 +295,7 @@ class ResponsiveNavBar extends StatelessWidget {
           }
         }
       } catch (e) {
-        print('❌ Error en callback logout: $e');
+        print('  Error en callback logout: $e');
 
         // Cerrar loading dialog
         if (context.mounted) {

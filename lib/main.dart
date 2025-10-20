@@ -114,7 +114,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   // Método mejorado para manejar el logout
   Future<void> _handleLogout() async {
-    print('🔄 Iniciando proceso de logout desde AuthWrapper...');
+    print('  Iniciando proceso de logout desde AuthWrapper...');
 
     try {
       // Realizar logout en el servicio
@@ -128,12 +128,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
           _isLoading = false;
         });
 
-        print('✅ Logout completado exitosamente - Estado actualizado');
+        print('  Logout completado exitosamente - Estado actualizado');
         print('   _isAuthenticated: $_isAuthenticated');
         print('   _currentUser: $_currentUser');
       }
     } catch (e) {
-      print('❌ Error durante logout: $e');
+      print('  Error durante logout: $e');
 
       // Aún si hay error, limpiar sesión localmente
       if (mounted) {

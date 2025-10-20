@@ -446,7 +446,7 @@ class _XRayScreenState extends State<XRayScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '🔍 Leyenda de Marcas:',
+                  '  Leyenda de Marcas:',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 8),

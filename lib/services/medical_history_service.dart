@@ -85,9 +85,9 @@ class MedicalHistoryService {
             !patientIdsWithHistory.contains(patient.id);
       }).toList();
 
-      print('📊 Total pacientes: ${allPatients.length}');
+      print('  Total pacientes: ${allPatients.length}');
       print('📋 Pacientes con historial: ${patientIdsWithHistory.length}');
-      print('✅ Pacientes SIN historial: ${patientsWithoutHistory.length}');
+      print('  Pacientes SIN historial: ${patientsWithoutHistory.length}');
 
       return patientsWithoutHistory;
     } catch (e) {
@@ -167,13 +167,13 @@ class MedicalHistoryService {
       final responseData = _handleResponse(response);
 
       if (responseData['data'] != null) {
-        print('✅ Historial clínico creado exitosamente');
+        print('  Historial clínico creado exitosamente');
         return MedicalHistory.fromJson(responseData['data']);
       }
 
       throw Exception('No se recibieron datos del historial creado');
     } catch (e) {
-      print('❌ Error creando historial clínico: $e');
+      print('  Error creando historial clínico: $e');
       rethrow;
     }
   }

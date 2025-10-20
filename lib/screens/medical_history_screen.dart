@@ -64,7 +64,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         });
       }
 
-      print('📊 Total pacientes activos: ${_allPatients.length}');
+      print('  Total pacientes activos: ${_allPatients.length}');
       print('📋 Pacientes con historial: ${historiesMap.length}');
     } catch (e) {
       if (mounted) {

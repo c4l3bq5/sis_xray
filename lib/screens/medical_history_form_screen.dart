@@ -678,8 +678,8 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
           SnackBar(
             content: Text(
               widget.isNewEntry
-                  ? '✅ Nuevo registro agregado al historial'
-                  : '✅ Historial clínico creado exitosamente',
+                  ? '  Nuevo registro agregado al historial'
+                  : '  Historial clínico creado exitosamente',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),

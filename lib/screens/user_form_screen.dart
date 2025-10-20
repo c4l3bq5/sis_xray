@@ -262,7 +262,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
             context: context,
             barrierDismissible: false,
             builder: (context) => AlertDialog(
-              title: const Text('✅ Usuario Creado Exitosamente'),
+              title: const Text('  Usuario Creado Exitosamente'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
