@@ -1,4 +1,4 @@
-// lib/screens/login_screen.dart - VERSIÓN MODERNA Y CORREGIDA
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/auth_models.dart';
@@ -333,6 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
               userName: response.data!.user.nombreCompleto,
               userRole: response.data!.user.rolFormateado,
               enTurno: true,
+              onLogout: null,
             ),
           ),
         );

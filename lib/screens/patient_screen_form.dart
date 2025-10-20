@@ -75,8 +75,22 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
       _provinciaController = TextEditingController(text: p.provincia ?? '');
 
       _selectedDate = DateTime.parse(p.fechNac);
-      _selectedGenero = p.genero;
-      _selectedGrupoSanguineo = p.grupoSanguineo;
+
+      // Convertir género de 'M'/'F' a 'Masculino'/'Femenino'
+      if (p.genero != null) {
+        if (p.genero!.toLowerCase() == 'm' ||
+            p.genero!.toLowerCase() == 'masculino') {
+          _selectedGenero = 'Masculino';
+        } else if (p.genero!.toLowerCase() == 'f' ||
+            p.genero!.toLowerCase() == 'femenino') {
+          _selectedGenero = 'Femenino';
+        }
+      }
+
+      _selectedGrupoSanguineo =
+          p.grupoSanguineo != null && p.grupoSanguineo!.isNotEmpty
+          ? p.grupoSanguineo
+          : null;
     } else {
       _ciController = TextEditingController();
       _nombreController = TextEditingController();
@@ -176,7 +190,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
         mail: _mailController.text.trim().isEmpty
             ? null
             : _mailController.text.trim(),
-        genero: _selectedGenero!.substring(0, 1),
+        genero: _selectedGenero!.toLowerCase() == 'masculino' ? 'M' : 'F',
         domicilio: _domicilioController.text.trim().isEmpty
             ? null
             : _domicilioController.text.trim(),
@@ -193,7 +207,8 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
         provincia: _provinciaController.text.trim().isEmpty
             ? null
             : _provinciaController.text.trim(),
-        activo: 'activo',
+        activo:
+            widget.paciente?.activo ?? 'activo', // Mantener el estado actual
       );
 
       if (widget.paciente == null) {
@@ -275,7 +290,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
                 }
                 return null;
               },
-              enabled: widget.paciente == null, // Solo editable al crear
+              enabled: true, // Solo editable al crear
             ),
             const SizedBox(height: 16),
 

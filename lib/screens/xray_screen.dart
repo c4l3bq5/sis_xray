@@ -43,7 +43,7 @@ class _XRayScreenState extends State<XRayScreen> {
         _apiResult = null;
       });
 
-      // ✅ LÓGICA DE CÁMARA - DEL PRIMER CÓDIGO QUE FUNCIONABA
+      //    LÓGICA DE CÁMARA - DEL PRIMER CÓDIGO QUE FUNCIONABA
       if (source == ImageSource.camera) {
         final imageBytes = await Navigator.push<Uint8List>(
           context,
@@ -75,7 +75,7 @@ class _XRayScreenState extends State<XRayScreen> {
         return;
       }
 
-      // ✅ LÓGICA DE GALERÍA - DEL SEGUNDO CÓDIGO
+      //    LÓGICA DE GALERÍA - DEL SEGUNDO CÓDIGO
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
         maxWidth: 1200,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/patient_models.dart';
 import '../services/patient_service.dart';
+import '../services/auth_service.dart';
 import 'patient_screen_form.dart';
 
 class PatientsScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class PatientsScreen extends StatefulWidget {
 
 class _PatientsScreenState extends State<PatientsScreen> {
   final PatientService _patientService = PatientService();
+  final AuthService _authService = AuthService();
   final TextEditingController _searchController = TextEditingController();
 
   List<Paciente> _pacientes = [];
@@ -22,10 +24,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
   bool _isLoading = true;
   bool _isSearching = false;
   String _errorMessage = '';
+  String _userRole = '';
+
+  // Variables para filtros de estado
+  bool _mostrarActivos = true;
+  bool _mostrarInactivos = false;
 
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     _loadData();
   }
 
@@ -35,6 +43,29 @@ class _PatientsScreenState extends State<PatientsScreen> {
     super.dispose();
   }
 
+  Future<void> _loadUserRole() async {
+    try {
+      final userData = await _authService.getUserData();
+      if (userData != null && mounted) {
+        setState(() {
+          _userRole = userData.rolFormateado;
+        });
+      }
+    } catch (e) {
+      print('Error cargando rol: $e');
+    }
+  }
+
+  bool get _esMedico {
+    return _userRole.toLowerCase().contains('médico') ||
+        _userRole.toLowerCase().contains('medico') ||
+        _userRole.toLowerCase().contains('interno');
+  }
+
+  bool get _esAdmin {
+    return _userRole.toLowerCase().contains('administrador');
+  }
+
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -42,7 +73,10 @@ class _PatientsScreenState extends State<PatientsScreen> {
     });
 
     try {
-      final response = await _patientService.getPacientes();
+      // INCLUIR PACIENTES INACTIVOS
+      final response = await _patientService.getPacientes(
+        includeInactive: true,
+      );
       final stats = await _patientService.getStats();
 
       setState(() {
@@ -51,6 +85,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
         _stats = stats;
         _isLoading = false;
       });
+
+      // Aplicar filtros después de cargar los datos
+      _filterPacientes(_searchController.text);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -61,10 +98,22 @@ class _PatientsScreenState extends State<PatientsScreen> {
 
   void _filterPacientes(String query) {
     setState(() {
+      List<Paciente> baseList = _pacientes;
+
+      // Aplicar filtro por estado
+      List<Paciente> filteredByStatus = [];
+      if (_mostrarActivos) {
+        filteredByStatus.addAll(baseList.where((p) => p.estaActivo));
+      }
+      if (_mostrarInactivos) {
+        filteredByStatus.addAll(baseList.where((p) => !p.estaActivo));
+      }
+
+      // Aplicar filtro de búsqueda
       if (query.isEmpty) {
-        _pacientesFiltrados = _pacientes;
+        _pacientesFiltrados = filteredByStatus;
       } else {
-        _pacientesFiltrados = _pacientes.where((p) {
+        _pacientesFiltrados = filteredByStatus.where((p) {
           final nombreCompleto = p.nombreCompleto.toLowerCase();
           final ci = p.ci.toLowerCase();
           final searchLower = query.toLowerCase();
@@ -73,6 +122,72 @@ class _PatientsScreenState extends State<PatientsScreen> {
         }).toList();
       }
     });
+  }
+
+  Future<void> _togglePacienteEstado(Paciente paciente) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          paciente.estaActivo ? 'Desactivar Paciente' : 'Activar Paciente',
+        ),
+        content: Text(
+          paciente.estaActivo
+              ? '¿Desactivar a ${paciente.nombreCompleto}?'
+              : '¿Activar a ${paciente.nombreCompleto}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              paciente.estaActivo ? 'Desactivar' : 'Activar',
+              style: TextStyle(
+                color: paciente.estaActivo ? Colors.red : Colors.green,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        if (paciente.estaActivo) {
+          await _patientService.desactivarPaciente(paciente.id!);
+        } else {
+          await _patientService.activarPaciente(paciente.id!);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                paciente.estaActivo
+                    ? 'Paciente desactivado correctamente'
+                    : 'Paciente activado correctamente',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadData();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Error: ${e.toString().replaceAll('Exception: ', '')}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _showPacienteDetails(Paciente paciente) {
@@ -187,40 +302,65 @@ class _PatientsScreenState extends State<PatientsScreen> {
           const SizedBox(height: 24),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            PatientFormScreen(paciente: paciente),
-                      ),
-                    );
-                    if (result == true) {
-                      _loadData();
-                    }
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Editar'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // TODO: Navegar a historial médico
-                  },
-                  icon: const Icon(Icons.medical_services),
-                  label: const Text('Ver Historial'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
+              // Botón Editar - Solo médicos e internos
+              if (_esMedico) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              PatientFormScreen(paciente: paciente),
+                        ),
+                      );
+                      if (result == true) {
+                        _loadData();
+                      }
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Editar'),
                   ),
                 ),
-              ),
+                const SizedBox(width: 12),
+              ],
+              // Botón Ver Historial - Solo médicos e internos
+              if (_esMedico)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // TODO: Navegar a historial médico
+                    },
+                    icon: const Icon(Icons.medical_services),
+                    label: const Text('Ver Historial'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              // Botón Cambiar Estado - Solo admin
+              if (_esAdmin)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _togglePacienteEstado(paciente);
+                    },
+                    icon: Icon(
+                      paciente.estaActivo ? Icons.block : Icons.check_circle,
+                    ),
+                    label: Text(paciente.estaActivo ? 'Desactivar' : 'Activar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: paciente.estaActivo
+                          ? Colors.red
+                          : Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
@@ -303,6 +443,65 @@ class _PatientsScreenState extends State<PatientsScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
         actions: [
+          // Botón de filtros - NUEVO
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list, color: Colors.white),
+            onSelected: (value) {
+              setState(() {
+                if (value == 'activos') {
+                  _mostrarActivos = !_mostrarActivos;
+                } else if (value == 'inactivos') {
+                  _mostrarInactivos = !_mostrarInactivos;
+                } else if (value == 'todos') {
+                  _mostrarActivos = true;
+                  _mostrarInactivos = true;
+                } else if (value == 'limpiar') {
+                  _mostrarActivos = true;
+                  _mostrarInactivos = false;
+                }
+              });
+              _filterPacientes(_searchController.text); // Re-aplicar filtros
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'activos',
+                child: Row(
+                  children: [
+                    Icon(
+                      _mostrarActivos
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      color: Colors.green,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Activos'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'inactivos',
+                child: Row(
+                  children: [
+                    Icon(
+                      _mostrarInactivos
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Inactivos'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'todos', child: Text('Mostrar todos')),
+              const PopupMenuItem(
+                value: 'limpiar',
+                child: Text('Solo activos'),
+              ),
+            ],
+          ),
+          // Botón de búsqueda existente
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -331,20 +530,25 @@ class _PatientsScreenState extends State<PatientsScreen> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const PatientFormScreen()),
-          );
-          if (result == true) {
-            _loadData();
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Paciente'),
-        backgroundColor: Colors.blueAccent,
-      ),
+      // FAB solo para médicos e internos
+      floatingActionButton: _esMedico
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PatientFormScreen(),
+                  ),
+                );
+                if (result == true) {
+                  _loadData();
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Nuevo Paciente'),
+              backgroundColor: Colors.blueAccent,
+            )
+          : null,
     );
   }
 
@@ -453,8 +657,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
           Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            _searchController.text.isNotEmpty
-                ? 'No se encontraron pacientes'
+            _searchController.text.isNotEmpty ||
+                    (!_mostrarActivos && !_mostrarInactivos)
+                ? 'No se encontraron pacientes con los filtros seleccionados'
                 : 'No hay pacientes registrados',
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
@@ -474,60 +679,111 @@ class _PatientsScreenState extends State<PatientsScreen> {
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             elevation: 2,
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: CircleAvatar(
-                backgroundColor: paciente.estaActivo
-                    ? Colors.blue[100]
-                    : Colors.grey[300],
-                child: Text(
-                  paciente.nombre.substring(0, 1).toUpperCase(),
-                  style: TextStyle(
-                    color: paciente.estaActivo
-                        ? Colors.blue[700]
-                        : Colors.grey[600],
+            color: paciente.estaActivo ? Colors.white : Colors.grey[100],
+            child: Opacity(
+              opacity: paciente.estaActivo ? 1.0 : 0.6,
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: CircleAvatar(
+                  backgroundColor: paciente.estaActivo
+                      ? Colors.blue[100]
+                      : Colors.grey[300],
+                  child: Text(
+                    paciente.nombre.substring(0, 1).toUpperCase(),
+                    style: TextStyle(
+                      color: paciente.estaActivo
+                          ? Colors.blue[700]
+                          : Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  paciente.nombreCompleto,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
-              ),
-              title: Text(
-                paciente.nombreCompleto,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.badge, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text('CI: ${paciente.ci}'),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.cake, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text('${paciente.edad} años'),
+                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.bloodtype,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(paciente.grupoSanguineo),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: paciente.estaActivo
+                            ? Colors.green[50]
+                            : Colors.red[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: paciente.estaActivo
+                              ? Colors.green[200]!
+                              : Colors.red[200]!,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            paciente.estaActivo
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                            size: 14,
+                            color: paciente.estaActivo
+                                ? Colors.green[700]
+                                : Colors.red[700],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            paciente.estadoFormatado,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: paciente.estaActivo
+                                  ? Colors.green[700]
+                                  : Colors.red[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Colors.grey[400],
+                ),
+                onTap: () => _showPacienteDetails(paciente),
               ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.badge, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text('CI: ${paciente.ci}'),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(Icons.cake, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text('${paciente.edad} años'),
-                      const SizedBox(width: 12),
-                      Icon(Icons.bloodtype, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(paciente.grupoSanguineo),
-                    ],
-                  ),
-                ],
-              ),
-              trailing: Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey[400],
-              ),
-              onTap: () => _showPacienteDetails(paciente),
             ),
           );
         },

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/auth_models.dart';
+import '../models/user_models.dart';
 
 class AuthService {
   static const String baseUrl = 'https://apimed-production.up.railway.app/api';
@@ -22,8 +23,8 @@ class AuthService {
   }
 
   dynamic _handleResponse(http.Response response) {
-    print(' API Response: ${response.statusCode}');
-    print(' Body: ${response.body}');
+    print('API Response: ${response.statusCode}');
+    print('Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body);
@@ -72,14 +73,6 @@ class AuthService {
 
       if (token == null) return false;
 
-      final String? userDataString = await _secureStorage.read(
-        key: 'user_data',
-      );
-      if (userDataString != null) {
-        final userMap = json.decode(userDataString);
-        final user = UserData.fromJson(userMap);
-      }
-
       final response = await http
           .get(
             Uri.parse('$baseUrl/auth/verify'),
@@ -90,20 +83,19 @@ class AuthService {
       return response.statusCode == 200;
     } catch (e) {
       print('Error verificando token: $e');
-      // Si hay error, asumimos que no está autenticado
-      await clearSession(); // Limpiar sesión corrupta
+      await clearSession();
       return false;
     }
   }
 
   Future<void> logout() async {
-    print(' Iniciando logout...');
+    print('Iniciando logout...');
 
     try {
       final String? token = await _secureStorage.read(key: 'auth_token');
 
       if (token != null && token.isNotEmpty) {
-        print(' Enviando petición de logout al servidor...');
+        print('Enviando petición de logout al servidor...');
 
         final response = await http
             .post(
@@ -113,28 +105,26 @@ class AuthService {
             .timeout(
               const Duration(seconds: 5),
               onTimeout: () {
-                print(' Timeout en logout del servidor');
+                print('Timeout en logout del servidor');
                 return http.Response('{"message": "timeout"}', 408);
               },
             );
 
-        print(' Respuesta del servidor: ${response.statusCode}');
+        print('Respuesta del servidor: ${response.statusCode}');
       } else {
-        print(' No hay token guardado');
+        print('No hay token guardado');
       }
     } catch (e) {
-      print(' Error en petición de logout: $e');
+      print('Error en petición de logout: $e');
     } finally {
-      // SIEMPRE limpiar el storage
       try {
         await _secureStorage.deleteAll();
-        print(' Storage limpiado completamente');
+        print('Storage limpiado completamente');
       } catch (e) {
         print('Error limpiando storage: $e');
-        // Intentar borrar keys específicas
         await _secureStorage.delete(key: 'auth_token');
         await _secureStorage.delete(key: 'user_data');
-        print(' Keys específicas borradas');
+        print('Keys específicas borradas');
       }
     }
   }
@@ -156,8 +146,52 @@ class AuthService {
     return await _secureStorage.read(key: 'auth_token');
   }
 
-  Future<UserData?> getUserData() async {
+  /// Obtiene datos del usuario desde la API (SIEMPRE datos frescos)
+  /// Luego actualiza el cache local automáticamente
+  Future<UserData?> getUserData({bool forceRefresh = true}) async {
     try {
+      final String? token = await _secureStorage.read(key: 'auth_token');
+
+      if (token == null) {
+        return null;
+      }
+
+      // Si forceRefresh es true, consulta la API
+      if (forceRefresh) {
+        print('Consultando datos del usuario desde la API...');
+
+        try {
+          final response = await http
+              .get(
+                Uri.parse('$baseUrl/auth/me'),
+                headers: getHeaders(token: token),
+              )
+              .timeout(const Duration(seconds: 10));
+
+          if (response.statusCode == 200) {
+            final responseData = json.decode(response.body);
+
+            // La respuesta tiene estructura: { "success": true, "data": {...} }
+            if (responseData['data'] != null) {
+              final userData = UserData.fromJson(responseData['data']);
+
+              // Guardar en cache para disponibilidad offline
+              await _secureStorage.write(
+                key: 'user_data',
+                value: json.encode(userData.toJson()),
+              );
+
+              print('Datos del usuario actualizados desde la API');
+              return userData;
+            }
+          }
+        } catch (apiError) {
+          print('Error consultando API, usando cache: $apiError');
+          // Si falla la API, usa el cache
+        }
+      }
+
+      // Fallback: usar datos cacheados
       final String? userDataString = await _secureStorage.read(
         key: 'user_data',
       );
@@ -165,13 +199,43 @@ class AuthService {
         final Map<String, dynamic> userMap = json.decode(userDataString);
         return UserData.fromJson(userMap);
       }
+
       return null;
     } catch (e) {
+      print('Error en getUserData: $e');
       return null;
     }
   }
 
   Future<void> clearSession() async {
     await _secureStorage.deleteAll();
+  }
+
+  /// Actualiza los datos del usuario en el cache local
+  /// (Se llama automáticamente después de editar)
+  Future<void> updateUserDataFromUsuario(Usuario usuario) async {
+    try {
+      final userData = UserData(
+        id: usuario.id,
+        personaId: usuario.personaId,
+        rolId: usuario.rolId,
+        usuario: usuario.usuario,
+        mfaActivo: usuario.mfaActivo,
+        activo: usuario.activo,
+        nombre: usuario.nombre,
+        aPaterno: usuario.aPaterno,
+        aMaterno: usuario.aMaterno,
+        mail: usuario.mail,
+        rolNombre: usuario.rolNombre,
+      );
+
+      await _secureStorage.write(
+        key: 'user_data',
+        value: json.encode(userData.toJson()),
+      );
+      print('Datos del usuario actualizados en storage');
+    } catch (e) {
+      print('Error actualizando datos del usuario: $e');
+    }
   }
 }

@@ -41,32 +41,63 @@ class Paciente {
   });
 
   factory Paciente.fromJson(Map<String, dynamic> json) {
-    return Paciente(
-      id: json['id'],
-      personaId: json['persona_id'] ?? 0,
-      grupoSanguineo: json['grupo_sanguineo'] ?? '',
-      alergias: json['alergias'],
-      antecedentes: json['antecedentes'],
-      estatura: json['estatura'] != null
-          ? double.tryParse(json['estatura'].toString())
-          : null,
-      provincia: json['provincia'],
-      activo: json['activo'] ?? 'inactivo',
-      nombre: json['nombre'] ?? '',
-      aPaterno: json['a_paterno'] ?? '',
-      aMaterno: json['a_materno'],
-      fechNac: json['fech_nac'] ?? '',
-      telefono: json['telefono'],
-      mail: json['mail'],
-      ci: json['ci'] ?? '',
-      genero: json['genero'],
-      domicilio: json['domicilio'],
-    );
+    try {
+      return Paciente(
+        id: json['id'],
+        personaId: int.tryParse(json['persona_id']?.toString() ?? '0') ?? 0,
+        grupoSanguineo: (json['grupo_sanguineo'] ?? '').toString(),
+        alergias: json['alergias']?.toString(),
+        antecedentes: json['antecedentes']?.toString(),
+        estatura: json['estatura'] != null
+            ? double.tryParse(json['estatura'].toString())
+            : null,
+        provincia: json['provincia']?.toString(),
+        activo: (json['activo'] ?? 'inactivo').toString(),
+        nombre: (json['nombre'] ?? '').toString(),
+        aPaterno: (json['a_paterno'] ?? '').toString(),
+        aMaterno: json['a_materno']?.toString(),
+        fechNac: (json['fech_nac'] ?? '').toString(),
+        // Convertir telefono a string (viene como int de la API)
+        telefono: json['telefono'] != null ? json['telefono'].toString() : null,
+        mail: json['mail']?.toString(),
+        // Convertir CI a string (viene como int de la API)
+        ci: (json['ci'] ?? '').toString(),
+        genero: json['genero']?.toString(),
+        domicilio: json['domicilio']?.toString(),
+      );
+    } catch (e) {
+      print('Error parsing Paciente: $e');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'persona': {
+    if (id == null) {
+      // Para CREAR nuevo paciente
+      return {
+        'persona': {
+          'nombre': nombre,
+          'a_paterno': aPaterno,
+          'a_materno': aMaterno,
+          'fech_nac': fechNac,
+          'telefono': telefono,
+          'mail': mail,
+          'ci': ci,
+          'genero': genero,
+          'domicilio': domicilio,
+        },
+        'paciente': {
+          'grupo_sanguineo': grupoSanguineo,
+          'alergias': alergias,
+          'antecedentes': antecedentes,
+          'estatura': estatura,
+          'provincia': provincia,
+        },
+      };
+    } else {
+      // Para ACTUALIZAR paciente existente - enviar TODOS los datos
+      return {
+        // Datos de persona
         'nombre': nombre,
         'a_paterno': aPaterno,
         'a_materno': aMaterno,
@@ -76,15 +107,15 @@ class Paciente {
         'ci': ci,
         'genero': genero,
         'domicilio': domicilio,
-      },
-      'paciente': {
+        // Datos de paciente
         'grupo_sanguineo': grupoSanguineo,
         'alergias': alergias,
         'antecedentes': antecedentes,
         'estatura': estatura,
         'provincia': provincia,
-      },
-    };
+        'activo': activo,
+      };
+    }
   }
 
   String get nombreCompleto {
@@ -157,28 +188,29 @@ class PacienteStats {
   final int total;
   final int activos;
   final int inactivos;
-  final Map<String, int> porSexo;
-  final Map<String, int> porGrupoSanguineo;
 
   PacienteStats({
     required this.total,
     required this.activos,
     required this.inactivos,
-    required this.porSexo,
-    required this.porGrupoSanguineo,
   });
 
   factory PacienteStats.fromJson(Map<String, dynamic> json) {
-    return PacienteStats(
-      total: json['total'] ?? 0,
-      activos: json['activos'] ?? 0,
-      inactivos: json['inactivos'] ?? 0,
-      porSexo: json['por_sexo'] != null
-          ? Map<String, int>.from(json['por_sexo'])
-          : {},
-      porGrupoSanguineo: json['por_grupo_sanguineo'] != null
-          ? Map<String, int>.from(json['por_grupo_sanguineo'])
-          : {},
-    );
+    try {
+      // Convertir strings a int
+      final total =
+          int.tryParse(json['total_pacientes']?.toString() ?? '0') ?? 0;
+      final activos = int.tryParse(json['activos']?.toString() ?? '0') ?? 0;
+      final inactivos = int.tryParse(json['inactivos']?.toString() ?? '0') ?? 0;
+
+      return PacienteStats(
+        total: total,
+        activos: activos,
+        inactivos: inactivos,
+      );
+    } catch (e) {
+      print('Error parsing PacienteStats: $e');
+      return PacienteStats(total: 0, activos: 0, inactivos: 0);
+    }
   }
 }

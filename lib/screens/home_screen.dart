@@ -1,29 +1,69 @@
-// screens/home_screen.dart - CON RESTRICCIONES DE ROL
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_navbar.dart';
+import '../services/auth_service.dart';
 import 'xray_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final String userName;
   final String userRole;
   final bool enTurno;
+  final VoidCallback? onLogout;
 
   const HomeScreen({
     super.key,
     required this.userName,
     required this.userRole,
     required this.enTurno,
+    this.onLogout,
   });
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late String _currentUserName;
+  late String _currentUserRole;
+  final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserName = widget.userName;
+    _currentUserRole = widget.userRole;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recargar datos cada vez que volvemos a esta pantalla
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userData = await _authService.getUserData();
+      if (userData != null && mounted) {
+        setState(() {
+          _currentUserName = userData.nombreCompleto;
+          _currentUserRole = userData.rolFormateado;
+        });
+      }
+    } catch (e) {
+      print('Error cargando datos del usuario: $e');
+    }
+  }
+
   bool get _esMedico {
-    return userRole.toLowerCase().contains('médico') ||
-        userRole.toLowerCase().contains('medico') ||
-        userRole.toLowerCase().contains('interno');
+    return _currentUserRole.toLowerCase().contains('médico') ||
+        _currentUserRole.toLowerCase().contains('medico') ||
+        _currentUserRole.toLowerCase().contains('interno');
   }
 
   bool _esAdministrador() {
-    return userRole.toLowerCase().contains('administrador');
+    return _currentUserRole.toLowerCase().contains('administrador');
   }
 
   @override
@@ -44,7 +84,7 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
             decoration: BoxDecoration(
-              color: enTurno ? Colors.green : Colors.grey,
+              color: widget.enTurno ? Colors.green : Colors.grey,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -53,7 +93,7 @@ class HomeScreen extends StatelessWidget {
                 const Icon(Icons.circle, color: Colors.white, size: 8),
                 const SizedBox(width: 6),
                 Text(
-                  enTurno ? 'En turno' : 'Fuera',
+                  widget.enTurno ? 'En turno' : 'Fuera',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -66,16 +106,17 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       drawer: ResponsiveNavBar(
-        currentUser: userName,
-        userRole: userRole,
-        enTurno: enTurno,
+        currentUser: _currentUserName,
+        userRole: _currentUserRole,
+        enTurno: widget.enTurno,
+        onLogout: widget.onLogout,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildWelcomeHeader(greeting, context),
+            _buildWelcomeHeader(greeting),
             const SizedBox(height: 20),
             _buildQuickActions(context),
           ],
@@ -84,7 +125,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWelcomeHeader(String greeting, BuildContext context) {
+  Widget _buildWelcomeHeader(String greeting) {
     return Card(
       elevation: 4,
       child: Container(
@@ -102,7 +143,7 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$greeting, $userName!',
+              '$greeting, $_currentUserName!',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -111,7 +152,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              userRole,
+              _currentUserRole,
               style: const TextStyle(fontSize: 14, color: Colors.white70),
             ),
             const SizedBox(height: 2),
@@ -126,10 +167,8 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    // Lista de acciones según el rol
     final List<Widget> actions = [];
 
-    // Solo administradores pueden gestionar usuarios
     if (_esAdministrador()) {
       actions.add(
         _ActionCard(
@@ -144,7 +183,6 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    // Todos pueden gestionar pacientes
     actions.add(
       _ActionCard(
         title: 'Gestión de Pacientes',
@@ -157,7 +195,6 @@ class HomeScreen extends StatelessWidget {
       ),
     );
 
-    // Solo médicos e internos pueden analizar radiografías
     if (_esMedico) {
       actions.add(
         _ActionCard(
@@ -175,7 +212,6 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    // Solo admin puede ver reportes (logs)
     if (_esAdministrador()) {
       actions.add(
         _ActionCard(
@@ -190,7 +226,6 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    // Historial médico para todos (próximamente)
     actions.add(
       _ActionCard(
         title: 'Historial Médico',

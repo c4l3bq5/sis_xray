@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user_models.dart';
+import 'dart:math';
 import 'auth_service.dart';
 
 class UserService {
@@ -17,9 +18,19 @@ class UserService {
     };
   }
 
+  String _generateRandomPassword(int length) {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*';
+    final random = Random();
+    return List.generate(
+      length,
+      (index) => chars[random.nextInt(chars.length)],
+    ).join();
+  }
+
   dynamic _handleResponse(http.Response response) {
-    print(' API Response: ${response.statusCode}');
-    print(' Body: ${response.body}');
+    print('🔹 API Response: ${response.statusCode}');
+    print('🔹 Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body);
@@ -53,7 +64,7 @@ class UserService {
       final responseData = _handleResponse(response);
       return UsuariosResponse.fromJson(responseData);
     } catch (e) {
-      print(' Error obteniendo usuarios: $e');
+      print('  Error obteniendo usuarios: $e');
       rethrow;
     }
   }
@@ -69,7 +80,125 @@ class UserService {
       final responseData = _handleResponse(response);
       return Usuario.fromJson(responseData['data']);
     } catch (e) {
-      print(' Error obteniendo usuario: $e');
+      print('  Error obteniendo usuario: $e');
+      rethrow;
+    }
+  }
+
+  // Actualizar datos PERSONALES del usuario (tabla persona)
+  Future<bool> actualizarDatosPersona(
+    int personaId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/persons/$personaId'),
+            headers: headers,
+            body: json.encode(data),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      _handleResponse(response);
+      return true;
+    } catch (e) {
+      print('  Error actualizando datos personales: $e');
+      rethrow;
+    }
+  }
+
+  // Actualizar usuario (rol, username, etc)
+  Future<bool> actualizarUsuario(int id, Map<String, dynamic> data) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/users/$id'),
+            headers: headers,
+            body: json.encode(data),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      _handleResponse(response);
+      return true;
+    } catch (e) {
+      print('  Error actualizando usuario: $e');
+      rethrow;
+    }
+  }
+
+  // Crear usuario: Primero crear persona, luego usuario
+  Future<Map<String, dynamic>> crearUsuario({
+    required String nombre,
+    required String aPaterno,
+    required String? aMaterno,
+    required String ci,
+    required String mail,
+    required String usuario,
+    required int rolId,
+    required DateTime fechaNac,
+    required String genero,
+    required String? telefono,
+    required String? domicilio,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final passwordGenerada = _generateRandomPassword(8);
+
+      // PASO 1: Crear persona
+      final personaData = {
+        'nombre': nombre,
+        'a_paterno': aPaterno,
+        'a_materno': aMaterno,
+        'fech_nac': fechaNac.toIso8601String().split('T')[0],
+        'mail': mail,
+        'ci': ci,
+        'genero': genero,
+        'telefono': telefono,
+        'domicilio': domicilio,
+      };
+
+      print('📝 Creando persona...');
+      final personaResponse = await http
+          .post(
+            Uri.parse('$baseUrl/persons'),
+            headers: headers,
+            body: json.encode(personaData),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final personaResponseData = _handleResponse(personaResponse);
+      final personaId = personaResponseData['data']['id'];
+      print('   Persona creada con ID: $personaId');
+
+      // PASO 2: Crear usuario
+      final usuarioData = {
+        'persona_id': personaId,
+        'rol_id': rolId,
+        'usuario': usuario,
+        'contrasena': passwordGenerada,
+      };
+
+      print('📝 Creando usuario...');
+      final usuarioResponse = await http
+          .post(
+            Uri.parse('$baseUrl/users'),
+            headers: headers,
+            body: json.encode(usuarioData),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final usuarioResponseData = _handleResponse(usuarioResponse);
+      print('   Usuario creado exitosamente');
+
+      // Retornar usuario + contraseña para mostrar al admin
+      return {
+        'usuario': usuarioResponseData['data'],
+        'passwordGenerada': passwordGenerada,
+      };
+    } catch (e) {
+      print('  Error creando usuario: $e');
       rethrow;
     }
   }

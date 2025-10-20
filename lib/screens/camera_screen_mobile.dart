@@ -28,7 +28,7 @@ class _CameraScreenState extends State<CameraScreen> {
       if (photo != null) {
         final originalBytes = await photo.readAsBytes();
 
-        // ✅ Aplicar escala de grises
+        //    Aplicar escala de grises
         setState(() {
           _isProcessing = true;
         });

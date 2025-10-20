@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'screens/home_screen.dart';
 import 'screens/xray_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/logs_screen.dart';
 import 'screens/users_screen.dart';
+import 'screens/patients_screen.dart';
+import 'screens/medical_history_screen.dart';
 import 'services/auth_service.dart';
 import 'models/auth_models.dart';
 
@@ -14,29 +17,40 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sistema de Traumatología',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('es', 'ES'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('es', 'ES'), Locale('en', 'US')],
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const AuthWrapper(),
+      navigatorKey: _navigatorKey,
+      home: AuthWrapper(navigatorKey: _navigatorKey),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/xray': (context) => const XRayScreen(),
-        '/users': (context) => const UsersScreen(), // ✅ NUEVO
-        '/patients': (context) => const Scaffold(
-          body: Center(child: Text('Pacientes - Próximamente')),
-        ),
-        '/medical-history': (context) => const Scaffold(
-          body: Center(child: Text('Historial Médico - Próximamente')),
-        ),
+        '/users': (context) => const UsersScreen(),
+        '/patients': (context) => const PatientsScreen(),
+        '/medical-history': (context) => const MedicalHistoryScreen(),
         '/logs': (context) => const LogsScreen(),
       },
     );
@@ -44,10 +58,12 @@ class MyApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  const AuthWrapper({super.key, required this.navigatorKey});
 
   @override
-  _AuthWrapperState createState() => _AuthWrapperState();
+  State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
@@ -68,28 +84,72 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
       if (isValid) {
         final UserData? user = await _authService.getUserData();
-        setState(() {
-          _isAuthenticated = true;
-          _currentUser = user;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isAuthenticated = true;
+            _currentUser = user;
+            _isLoading = false;
+          });
+        }
       } else {
-        setState(() {
-          _isAuthenticated = false;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isAuthenticated = false;
+            _currentUser = null;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('Error en verificación: $e');
-      setState(() {
-        _isAuthenticated = false;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = false;
+          _currentUser = null;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Método mejorado para manejar el logout
+  Future<void> _handleLogout() async {
+    print('🔄 Iniciando proceso de logout desde AuthWrapper...');
+
+    try {
+      // Realizar logout en el servicio
+      await _authService.logout();
+
+      if (mounted) {
+        // Actualizar estado a no autenticado
+        setState(() {
+          _isAuthenticated = false;
+          _currentUser = null;
+          _isLoading = false;
+        });
+
+        print('✅ Logout completado exitosamente - Estado actualizado');
+        print('   _isAuthenticated: $_isAuthenticated');
+        print('   _currentUser: $_currentUser');
+      }
+    } catch (e) {
+      print('❌ Error durante logout: $e');
+
+      // Aún si hay error, limpiar sesión localmente
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = false;
+          _currentUser = null;
+          _isLoading = false;
+        });
+        print('⚠️ Sesión limpiada localmente después de error');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Pantalla de carga
     if (_isLoading) {
       return Scaffold(
         body: Container(
@@ -107,7 +167,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                 SizedBox(height: 20),
                 Text(
-                  'Verificando sesión...',
+                  'Cargando...',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ],
@@ -117,14 +177,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
+    // Usuario autenticado - mostrar HomeScreen
     if (_isAuthenticated && _currentUser != null) {
       return HomeScreen(
         userName: _currentUser!.nombreCompleto,
         userRole: _currentUser!.rolFormateado,
         enTurno: true,
+        onLogout: _handleLogout, // Pasar el callback correcto
       );
     }
 
+    // No autenticado - mostrar LoginScreen
     return const LoginScreen();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }

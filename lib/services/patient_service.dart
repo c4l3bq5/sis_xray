@@ -18,8 +18,8 @@ class PatientService {
   }
 
   dynamic _handleResponse(http.Response response) {
-    print('🔵 API Response: ${response.statusCode}');
-    print('🔵 Body: ${response.body}');
+    print(' API Response: ${response.statusCode}');
+    print(' Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body);
@@ -45,11 +45,15 @@ class PatientService {
   }
 
   // Obtener lista de pacientes
-  Future<PacientesResponse> getPacientes() async {
+  Future<PacientesResponse> getPacientes({bool includeInactive = false}) async {
     try {
       final headers = await _getHeaders();
+      final url = includeInactive
+          ? '$baseUrl/patients?includeInactive=true'
+          : '$baseUrl/patients';
+
       final response = await http
-          .get(Uri.parse('$baseUrl/patients'), headers: headers)
+          .get(Uri.parse(url), headers: headers)
           .timeout(const Duration(seconds: 30));
 
       final responseData = _handleResponse(response);
@@ -119,7 +123,7 @@ class PatientService {
       final responseData = _handleResponse(response);
       return Paciente.fromJson(responseData['data']);
     } catch (e) {
-      print('❌ Error obteniendo paciente: $e');
+      print(' Error obteniendo paciente: $e');
       rethrow;
     }
   }
@@ -128,18 +132,64 @@ class PatientService {
   Future<Paciente> crearPaciente(Paciente paciente) async {
     try {
       final headers = await _getHeaders();
-      final response = await http
+
+      // Datos para crear la persona
+      final personaData = {
+        'nombre': paciente.nombre,
+        'a_paterno': paciente.aPaterno,
+        'a_materno': paciente.aMaterno,
+        'fech_nac': paciente.fechNac,
+        'telefono': paciente.telefono,
+        'mail': paciente.mail,
+        'ci': paciente.ci,
+        'genero': paciente.genero,
+        'domicilio': paciente.domicilio,
+      };
+
+      print('🔵 DATOS A ENVIAR: $personaData'); // ← AGREGA ESTA LÍNEA
+
+      // Crear la persona primero
+      print(' Creando persona...');
+      final personaResponse = await http
           .post(
-            Uri.parse('$baseUrl/patients'),
+            Uri.parse('$baseUrl/persons'),
             headers: headers,
-            body: json.encode(paciente.toJson()),
+            body: json.encode(personaData),
           )
           .timeout(const Duration(seconds: 30));
 
-      final responseData = _handleResponse(response);
-      return Paciente.fromJson(responseData['data']);
+      final personaResponseData = _handleResponse(personaResponse);
+      final personaId = personaResponseData['data']['id'];
+      print(' Persona creada con ID: $personaId');
+
+      // Datos para crear el paciente
+      final pacienteData = {
+        'persona_id': personaId,
+        'grupo_sanguineo': paciente.grupoSanguineo,
+        'alergias': paciente.alergias,
+        'antecedentes': paciente.antecedentes,
+        'estatura': paciente.estatura,
+        'provincia': paciente.provincia,
+      };
+
+      print('🔵 DATOS PACIENTE A ENVIAR: $pacienteData');
+
+      // Crear el paciente con la persona_id
+      print(' Creando paciente...');
+      final pacienteResponse = await http
+          .post(
+            Uri.parse('$baseUrl/patients'),
+            headers: headers,
+            body: json.encode(pacienteData),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final pacienteResponseData = _handleResponse(pacienteResponse);
+      print(' Paciente creado exitosamente');
+
+      return Paciente.fromJson(pacienteResponseData['data']);
     } catch (e) {
-      print(' Error creando paciente: $e');
+      print('Error creando paciente: $e');
       rethrow;
     }
   }
@@ -148,18 +198,42 @@ class PatientService {
   Future<Paciente> actualizarPaciente(int id, Paciente paciente) async {
     try {
       final headers = await _getHeaders();
+
+      // Enviar datos PLANOS, no anidados
+      final Map<String, dynamic> dataToUpdate = {
+        // Datos de persona
+        'nombre': paciente.nombre,
+        'a_paterno': paciente.aPaterno,
+        'a_materno': paciente.aMaterno,
+        'fech_nac': paciente.fechNac,
+        'telefono': paciente.telefono,
+        'mail': paciente.mail,
+        'ci': paciente.ci,
+        'genero': paciente.genero,
+        'domicilio': paciente.domicilio,
+        // Datos de paciente
+        'grupo_sanguineo': paciente.grupoSanguineo,
+        'alergias': paciente.alergias,
+        'antecedentes': paciente.antecedentes,
+        'estatura': paciente.estatura,
+        'provincia': paciente.provincia,
+        'activo': paciente.activo,
+      };
+
+      print(' Enviando actualización: $dataToUpdate');
+
       final response = await http
           .put(
             Uri.parse('$baseUrl/patients/$id'),
             headers: headers,
-            body: json.encode(paciente.toJson()),
+            body: json.encode(dataToUpdate),
           )
           .timeout(const Duration(seconds: 30));
 
       final responseData = _handleResponse(response);
       return Paciente.fromJson(responseData['data']);
     } catch (e) {
-      print(' Error actualizando paciente: $e');
+      print('Error actualizando paciente: $e');
       rethrow;
     }
   }
