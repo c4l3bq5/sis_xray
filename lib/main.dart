@@ -112,38 +112,38 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
-  // Método mejorado para manejar el logout
-  Future<void> _handleLogout() async {
-    print('  Iniciando proceso de logout desde AuthWrapper...');
+  //  MÉTODO SIMPLIFICADO - Logout síncrono que dispara navegación inmediata
+  void _handleLogoutSync() {
+    print(' Logout síncrono iniciado...');
 
+    // Navegar INMEDIATAMENTE al login
+    widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/login',
+      (route) => false,
+    );
+    print(' Navegación a login ejecutada');
+
+    // Luego actualizar estado y limpiar en segundo plano
+    _performAsyncLogout();
+  }
+
+  // Limpieza asíncrona en segundo plano
+  Future<void> _performAsyncLogout() async {
     try {
-      // Realizar logout en el servicio
       await _authService.logout();
+      print(' Logout del servicio completado');
 
       if (mounted) {
-        // Actualizar estado a no autenticado
         setState(() {
           _isAuthenticated = false;
           _currentUser = null;
           _isLoading = false;
         });
-
-        print('  Logout completado exitosamente - Estado actualizado');
-        print('   _isAuthenticated: $_isAuthenticated');
-        print('   _currentUser: $_currentUser');
+        print(' Estado local limpiado');
       }
     } catch (e) {
-      print('  Error durante logout: $e');
-
-      // Aún si hay error, limpiar sesión localmente
-      if (mounted) {
-        setState(() {
-          _isAuthenticated = false;
-          _currentUser = null;
-          _isLoading = false;
-        });
-        print('⚠️ Sesión limpiada localmente después de error');
-      }
+      print(' Error en logout asíncrono: $e');
+      // No importa si falla, ya navegamos al login
     }
   }
 
@@ -179,15 +179,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     // Usuario autenticado - mostrar HomeScreen
     if (_isAuthenticated && _currentUser != null) {
+      print(' Renderizando HomeScreen para: ${_currentUser!.nombreCompleto}');
       return HomeScreen(
         userName: _currentUser!.nombreCompleto,
         userRole: _currentUser!.rolFormateado,
         enTurno: true,
-        onLogout: _handleLogout, // Pasar el callback correcto
+        onLogout: _handleLogoutSync,
       );
     }
 
     // No autenticado - mostrar LoginScreen
+    print(' Renderizando LoginScreen');
     return const LoginScreen();
   }
 

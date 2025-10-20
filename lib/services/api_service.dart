@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart'; // ¡IMPORTANTE! Agregar este imp
 
 class ApiService {
   static const String _ngrokUrl =
-      'https://sacha-blossomless-swelteringly.ngrok-free.dev';
+      'https://sheet-armor-jeans-info.trycloudflare.com';
 
   /// Analiza una imagen de radiografía
   /// [imageBytes] - Bytes de la imagen en formato JPG/PNG
@@ -24,10 +24,10 @@ class ApiService {
       final request = http.MultipartRequest('POST', uri);
 
       final multipartFile = http.MultipartFile.fromBytes(
-        'image', 
+        'image',
         imageBytes,
         filename: 'xray_analysis.jpg',
-        contentType: MediaType('image', 'jpeg'), 
+        contentType: MediaType('image', 'jpeg'),
       );
 
       request.files.add(multipartFile);
@@ -35,7 +35,8 @@ class ApiService {
       // Headers adicionales
       request.headers.addAll({
         'Accept': 'application/json',
-        'ngrok-skip-browser-warning': 'true', // Para evitar advertencias de ngrok
+        'ngrok-skip-browser-warning':
+            'true', // Para evitar advertencias de ngrok
       });
 
       print(' Tipo de contenido: image/jpeg');

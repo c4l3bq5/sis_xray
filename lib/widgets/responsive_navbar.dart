@@ -231,6 +231,9 @@ class ResponsiveNavBar extends StatelessWidget {
   }
 
   Future<void> _showLogoutDialog(BuildContext context) async {
+    // Guardar el context del scaffold ANTES de abrir el dialog
+    final scaffoldContext = context;
+
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -251,114 +254,51 @@ class ResponsiveNavBar extends StatelessWidget {
       ),
     );
 
-    if (result == true && context.mounted) {
-      _performLogout(context);
+    if (result == true) {
+      _performLogout(scaffoldContext);
     }
   }
 
-  Future<void> _performLogout(BuildContext context) async {
-    // Cerrar el drawer
-    Navigator.of(context).pop();
+  void _performLogout(BuildContext context) {
+    print(' Iniciando logout desde ResponsiveNavBar...');
 
-    // Si existe el callback, usarlo (ESTE ES EL CAMBIO CLAVE)
-    if (onLogout != null) {
-      print('  Usando callback onLogout del AuthWrapper');
+    Navigator.of(context, rootNavigator: false).pop();
+    print(' Drawer cerrado');
 
-      // Mostrar loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => PopScope(
-          canPop: false,
-          child: const Center(
-            child: CircularProgressIndicator(
-              color: Colors.white,
-              strokeWidth: 3,
-            ),
-          ),
-        ),
-      );
-
-      try {
-        // Llamar al callback que maneja todo el proceso
+    Future.microtask(() {
+      print(' Ejecutando en microtask...');
+      if (onLogout != null) {
+        print(' Ejecutando callback onLogout');
         onLogout!();
+        print(' Callback ejecutado');
+      } else {
+        print(' ERROR: No hay callback onLogout');
+        _fallbackLogout(context);
+      }
+    });
+  }
 
-        // Esperar un momento para que se complete el logout
-        await Future.delayed(const Duration(milliseconds: 500));
+  // Fallback solo por seguridad (no debería usarse)
+  void _fallbackLogout(BuildContext context) {
+    print(' Usando fallback de logout');
 
-        // Cerrar el loading dialog si todavía está abierto
-        if (context.mounted) {
-          try {
-            Navigator.of(context).pop();
-          } catch (_) {
-            // Ya fue cerrado
+    // Intentar logout y navegar de forma síncrona
+    AuthService()
+        .logout()
+        .then((_) {
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/login', (route) => false);
           }
-        }
-      } catch (e) {
-        print('  Error en callback logout: $e');
-
-        // Cerrar loading dialog
-        if (context.mounted) {
-          try {
-            Navigator.of(context).pop();
-          } catch (_) {}
-
-          // Mostrar error
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al cerrar sesión: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-      return;
-    }
-
-    // FALLBACK: Si no hay callback (por alguna razón), hacer logout manual
-    print('⚠️ No hay callback onLogout, haciendo logout manual');
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (loadingContext) => PopScope(
-        canPop: false,
-        child: const Center(
-          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-        ),
-      ),
-    );
-
-    try {
-      final authService = AuthService();
-      await authService.logout().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          print('Timeout en logout manual');
-        },
-      );
-
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Cerrar loading
-
-        // Navegar al login removiendo todo el stack
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/login', (route) => false);
-      }
-    } catch (e) {
-      print('Error en logout manual: $e');
-
-      if (context.mounted) {
-        try {
-          Navigator.of(context).pop(); // Cerrar loading
-        } catch (_) {}
-
-        // Ir al login de todas formas
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/login', (route) => false);
-      }
-    }
+        })
+        .catchError((e) {
+          print('Error en fallback: $e');
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/login', (route) => false);
+          }
+        });
   }
 }
