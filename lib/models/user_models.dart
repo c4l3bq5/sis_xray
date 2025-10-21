@@ -14,6 +14,11 @@ class Usuario {
   final String aPaterno;
   final String? aMaterno;
   final String? mail;
+  final String? ci; // 🔥 Agregado
+  final String? telefono; // 🔥 Agregado
+  final String? domicilio; // 🔥 Agregado
+  final DateTime? fechaNac; // 🔥 Agregado
+  final String? genero; // 🔥 Agregado
 
   // Datos del rol
   final String rolNombre;
@@ -31,6 +36,11 @@ class Usuario {
     required this.aPaterno,
     this.aMaterno,
     this.mail,
+    this.ci, // 🔥 Agregado
+    this.telefono, // 🔥 Agregado
+    this.domicilio, // 🔥 Agregado
+    this.fechaNac, // 🔥 Agregado
+    this.genero, // 🔥 Agregado
     required this.rolNombre,
   });
 
@@ -52,6 +62,13 @@ class Usuario {
       aPaterno: json['a_paterno'] ?? '',
       aMaterno: json['a_materno'],
       mail: json['mail'],
+      ci: json['ci'], // 🔥 Agregado
+      telefono: json['telefono'], // 🔥 Agregado
+      domicilio: json['domicilio'], // 🔥 Agregado
+      fechaNac: json['fech_nac'] != null
+          ? DateTime.parse(json['fech_nac'])
+          : null, // 🔥 Agregado
+      genero: json['genero'], // 🔥 Agregado
       rolNombre: json['rol_nombre'] ?? '',
     );
   }

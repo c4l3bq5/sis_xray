@@ -1,6 +1,6 @@
 // widgets/responsive_navbar.dart
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'dart:async';
 
 class ResponsiveNavBar extends StatelessWidget {
   final String currentUser;
@@ -231,9 +231,6 @@ class ResponsiveNavBar extends StatelessWidget {
   }
 
   Future<void> _showLogoutDialog(BuildContext context) async {
-    // Guardar el context del scaffold ANTES de abrir el dialog
-    final scaffoldContext = context;
-
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -255,50 +252,41 @@ class ResponsiveNavBar extends StatelessWidget {
     );
 
     if (result == true) {
-      _performLogout(scaffoldContext);
+      // NO verificar context.mounted, ejecutar inmediatamente
+      _performLogout(context);
     }
   }
 
+  //  LOGOUT MEJORADO - Estrategia más agresiva para móvil
   void _performLogout(BuildContext context) {
-    print(' Iniciando logout desde ResponsiveNavBar...');
+    print('🚪 Iniciando logout desde ResponsiveNavBar...');
 
-    Navigator.of(context, rootNavigator: false).pop();
-    print(' Drawer cerrado');
+    // 1️ Cerrar el drawer inmediatamente
+    try {
+      Navigator.of(context).pop();
+      print(' Drawer cerrado');
+    } catch (e) {
+      print(' Error cerrando drawer: $e');
+      // Continuar de todos modos
+    }
 
-    Future.microtask(() {
-      print(' Ejecutando en microtask...');
-      if (onLogout != null) {
-        print(' Ejecutando callback onLogout');
+    // 2️ Verificar que tenemos el callback
+    if (onLogout == null) {
+      print(' ERROR CRÍTICO: No hay callback onLogout');
+      return;
+    }
+
+    print(' Ejecutando callback de logout');
+
+    // Estrategia: Ejecutar el callback en el siguiente frame
+    // Esto da tiempo a que el drawer termine de cerrar
+    scheduleMicrotask(() {
+      try {
         onLogout!();
-        print(' Callback ejecutado');
-      } else {
-        print(' ERROR: No hay callback onLogout');
-        _fallbackLogout(context);
+        print(' Callback de logout ejecutado');
+      } catch (e) {
+        print(' Error ejecutando callback: $e');
       }
     });
-  }
-
-  // Fallback solo por seguridad (no debería usarse)
-  void _fallbackLogout(BuildContext context) {
-    print(' Usando fallback de logout');
-
-    // Intentar logout y navegar de forma síncrona
-    AuthService()
-        .logout()
-        .then((_) {
-          if (context.mounted) {
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil('/login', (route) => false);
-          }
-        })
-        .catchError((e) {
-          print('Error en fallback: $e');
-          if (context.mounted) {
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil('/login', (route) => false);
-          }
-        });
   }
 }

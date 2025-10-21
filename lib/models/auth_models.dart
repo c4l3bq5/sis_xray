@@ -27,15 +27,27 @@ class LoginResponse {
 }
 
 class LoginData {
-  final UserData user;
   final String token;
+  final UserData user;
+  final bool? requiresMFA; // 🔥 NUEVO: Indica si necesita MFA
+  final bool? requiresPasswordChange; // 🔥 NUEVO: Contraseña temporal
+  final int? userId; // 🔥 NUEVO: Para flujo MFA
 
-  LoginData({required this.user, required this.token});
+  LoginData({
+    required this.token,
+    required this.user,
+    this.requiresMFA,
+    this.requiresPasswordChange,
+    this.userId,
+  });
 
   factory LoginData.fromJson(Map<String, dynamic> json) {
     return LoginData(
-      user: UserData.fromJson(json['user']),
       token: json['token'] ?? '',
+      user: UserData.fromJson(json['user']),
+      requiresMFA: json['requiresMFA'],
+      requiresPasswordChange: json['requiresPasswordChange'],
+      userId: json['userId'],
     );
   }
 }
@@ -70,16 +82,16 @@ class UserData {
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
       id: json['id'] ?? 0,
-      personaId: json['persona_id'] ?? 0,
-      rolId: json['rol_id'] ?? 0,
+      personaId: json['persona_id'] ?? json['personaId'] ?? 0,
+      rolId: json['rol_id'] ?? json['rolId'] ?? 0,
       usuario: json['usuario'] ?? '',
-      mfaActivo: json['mfa_activo'] ?? false,
-      activo: json['activo'] ?? '',
+      mfaActivo: json['mfa_activo'] ?? json['mfaActivo'] ?? false,
+      activo: json['activo'] ?? 'inactivo',
       nombre: json['nombre'] ?? '',
-      aPaterno: json['a_paterno'] ?? '',
-      aMaterno: json['a_materno'],
+      aPaterno: json['a_paterno'] ?? json['aPaterno'] ?? '',
+      aMaterno: json['a_materno'] ?? json['aMaterno'],
       mail: json['mail'],
-      rolNombre: json['rol_nombre'] ?? '',
+      rolNombre: json['rol_nombre'] ?? json['rolNombre'] ?? '',
     );
   }
 
@@ -106,18 +118,74 @@ class UserData {
     return '$nombre $aPaterno';
   }
 
-  bool get estaActivo => activo.toLowerCase() == 'activo';
-
   String get rolFormateado {
-    switch (rolNombre.toLowerCase()) {
-      case 'administrador':
-        return 'Administrador';
-      case 'medico':
-        return 'Médico';
-      case 'interno':
-        return 'Interno';
-      default:
-        return rolNombre;
-    }
+    // Capitaliza primera letra
+    if (rolNombre.isEmpty) return 'Sin Rol';
+    return rolNombre[0].toUpperCase() + rolNombre.substring(1).toLowerCase();
+  }
+}
+
+// 🔥 NUEVOS MODELOS PARA MFA
+
+class MFAVerifyRequest {
+  final int userId;
+  final String mfaCode;
+
+  MFAVerifyRequest({required this.userId, required this.mfaCode});
+
+  Map<String, dynamic> toJson() {
+    return {'userId': userId, 'mfaCode': mfaCode};
+  }
+}
+
+class MFAVerifyResponse {
+  final bool success;
+  final String message;
+  final MFAVerifyData? data;
+
+  MFAVerifyResponse({required this.success, required this.message, this.data});
+
+  factory MFAVerifyResponse.fromJson(Map<String, dynamic> json) {
+    return MFAVerifyResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      data: json['data'] != null ? MFAVerifyData.fromJson(json['data']) : null,
+    );
+  }
+}
+
+class MFAVerifyData {
+  final int userId;
+  final bool mfaVerified;
+
+  MFAVerifyData({required this.userId, required this.mfaVerified});
+
+  factory MFAVerifyData.fromJson(Map<String, dynamic> json) {
+    return MFAVerifyData(
+      userId: json['userId'] ?? 0,
+      mfaVerified: json['mfaVerified'] ?? false,
+    );
+  }
+}
+
+// 🔥 MODELO PARA CAMBIO DE CONTRASEÑA TEMPORAL
+
+class ChangePasswordRequest {
+  final int userId;
+  final String oldPassword;
+  final String newPassword;
+
+  ChangePasswordRequest({
+    required this.userId,
+    required this.oldPassword,
+    required this.newPassword,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+    };
   }
 }

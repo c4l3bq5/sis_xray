@@ -1216,7 +1216,7 @@ class _XRayScreenState extends State<XRayScreen> {
                           ),
                           SizedBox(height: 15),
                           Text(
-                            'Esperando respuesta del servidor (Ngrok/Colab)...',
+                            'Esperando respuesta del servidor (cloudflare tunnel - colab)...',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.blueGrey,

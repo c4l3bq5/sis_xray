@@ -1,6 +1,8 @@
 // lib/screens/user_form_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 import '../services/auth_service.dart';
 import '../models/user_models.dart';
 import '../models/role_models.dart';
@@ -8,7 +10,7 @@ import '../services/user_service.dart';
 import '../services/role_service.dart';
 
 class UserFormScreen extends StatefulWidget {
-  final Usuario? usuario; // null si es para crear
+  final Usuario? usuario;
 
   const UserFormScreen({super.key, this.usuario});
 
@@ -21,7 +23,6 @@ class _UserFormScreenState extends State<UserFormScreen> {
   final UserService _userService = UserService();
   final RoleService _roleService = RoleService();
 
-  // Controladores para datos de persona
   late TextEditingController _nombreController;
   late TextEditingController _aPaternoController;
   late TextEditingController _aMaternoController;
@@ -73,6 +74,27 @@ class _UserFormScreenState extends State<UserFormScreen> {
       _domicilioController = TextEditingController();
       _ciController = TextEditingController();
     }
+
+    // 🔥 Listener para generar usuario automáticamente
+    if (!_isEditing) {
+      _nombreController.addListener(_generarUsuario);
+      _aPaternoController.addListener(_generarUsuario);
+    }
+  }
+
+  // 🔥 Generar username automáticamente
+  void _generarUsuario() {
+    final nombre = _nombreController.text.trim();
+    final apellido = _aPaternoController.text.trim();
+
+    if (nombre.isNotEmpty && apellido.isNotEmpty) {
+      final primeraLetra = nombre[0].toLowerCase();
+      final apellidoClean = apellido.toLowerCase().replaceAll(' ', '');
+      final random = Random().nextInt(99999).toString().padLeft(5, '0');
+
+      final usuario = '$primeraLetra$apellidoClean$random';
+      _usuarioController.text = usuario;
+    }
   }
 
   Future<void> _cargarRoles() async {
@@ -116,15 +138,48 @@ class _UserFormScreenState extends State<UserFormScreen> {
   }
 
   Future<void> _selectFecha(BuildContext context) async {
+    // 🔥 Calcular fechas límite (18-70 años)
+    final now = DateTime.now();
+    final minDate = DateTime(now.year - 70, now.month, now.day);
+    final maxDate = DateTime(now.year - 18, now.month, now.day);
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _fechaNacimiento ?? DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      initialDate: maxDate,
+      firstDate: minDate,
+      lastDate: maxDate,
       locale: const Locale('es', 'ES'),
+      helpText: 'Selecciona fecha de nacimiento (18-70 años)',
     );
+
     if (picked != null) {
       setState(() => _fechaNacimiento = picked);
+    }
+  }
+
+  // 🔥 Validar CI único en el backend
+  Future<bool> _validarCIUnico(String ci) async {
+    try {
+      final usuarios = await _userService.getUsuarios();
+      return !usuarios.usuarios.any(
+        (u) => u.ci == ci && (_isEditing ? u.id != widget.usuario!.id : true),
+      );
+    } catch (e) {
+      return true; // Si falla la validación, permitir continuar
+    }
+  }
+
+  // 🔥 Validar username único en el backend
+  Future<bool> _validarUsuarioUnico(String usuario) async {
+    try {
+      final usuarios = await _userService.getUsuarios();
+      return !usuarios.usuarios.any(
+        (u) =>
+            u.usuario.toLowerCase() == usuario.toLowerCase() &&
+            (_isEditing ? u.id != widget.usuario!.id : true),
+      );
+    } catch (e) {
+      return true;
     }
   }
 
@@ -161,11 +216,37 @@ class _UserFormScreenState extends State<UserFormScreen> {
       return;
     }
 
+    // 🔥 Validar CI único
+    if (!await _validarCIUnico(_ciController.text.trim())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El CI ya está registrado'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 🔥 Validar usuario único
+    if (!await _validarUsuarioUnico(_usuarioController.text.trim())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El nombre de usuario ya existe'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       if (_isEditing) {
-        // ACTUALIZAR: datos de persona + rol y usuario
+        // ACTUALIZAR
         final dataPersona = {
           'nombre': _nombreController.text.trim(),
           'a_paterno': _aPaternoController.text.trim(),
@@ -231,7 +312,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
           Navigator.pop(context, true);
         }
       } else {
-        // CREAR: Construir usuario desde los campos del formulario
+        // CREAR
         final result = await _userService.crearUsuario(
           nombre: _nombreController.text.trim(),
           aPaterno: _aPaternoController.text.trim(),
@@ -254,15 +335,15 @@ class _UserFormScreenState extends State<UserFormScreen> {
               : _domicilioController.text.trim(),
         );
 
-        final passwordGenerada = result['passwordGenerada'];
+        final passwordGenerada = result['passwordGenerada'] ?? 'N/A';
+        print('🔑 Contraseña temporal recibida: $passwordGenerada');
 
         if (mounted) {
-          // Mostrar un diálogo con la contraseña generada
           showDialog(
             context: context,
             barrierDismissible: false,
             builder: (context) => AlertDialog(
-              title: const Text('  Usuario Creado Exitosamente'),
+              title: const Text('✅ Usuario Creado Exitosamente'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,7 +370,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    ' El usuario debe cambiar esta contraseña en el primer inicio de sesión.',
+                    '⚠️ El usuario debe cambiar esta contraseña en el primer inicio de sesión.',
                     style: TextStyle(fontSize: 12, color: Colors.orange),
                   ),
                 ],
@@ -382,8 +463,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     ),
                     const SizedBox(height: 32),
                   ],
+
                   _buildSectionTitle('Datos Personales', Icons.person),
                   const SizedBox(height: 16),
+
+                  // 🔥 NOMBRE - Solo letras
                   TextFormField(
                     controller: _nombreController,
                     decoration: _inputDecoration(
@@ -391,16 +475,27 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       Icons.person_outline,
                     ),
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                      ),
+                      LengthLimitingTextInputFormatter(50),
+                    ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'El nombre es obligatorio';
+                      }
+                      if (value.length < 2) {
+                        return 'Mínimo 2 caracteres';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
                   Row(
                     children: [
+                      // 🔥 APELLIDO PATERNO - Solo letras
                       Expanded(
                         child: TextFormField(
                           controller: _aPaternoController,
@@ -409,6 +504,12 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             null,
                           ),
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                            ),
+                            LengthLimitingTextInputFormatter(50),
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Obligatorio';
@@ -418,6 +519,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // 🔥 APELLIDO MATERNO - Solo letras
                       Expanded(
                         child: TextFormField(
                           controller: _aMaternoController,
@@ -426,27 +528,48 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             null,
                           ),
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                            ),
+                            LengthLimitingTextInputFormatter(50),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
+
+                  // 🔥 CI - Solo números, exactamente 7 dígitos
                   TextFormField(
                     controller: _ciController,
-                    decoration: _inputDecoration('CI *', Icons.card_travel),
+                    decoration: _inputDecoration(
+                      'CI * (7 dígitos)',
+                      Icons.card_travel,
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(7),
+                    ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'El CI es obligatorio';
+                      }
+                      if (value.length != 7) {
+                        return 'El CI debe tener exactamente 7 dígitos';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // 🔥 FECHA - 18-70 años
                   GestureDetector(
                     onTap: () => _selectFecha(context),
                     child: InputDecorator(
                       decoration: _inputDecoration(
-                        'Fecha de Nacimiento *',
+                        'Fecha de Nacimiento * (18-70 años)',
                         Icons.calendar_today,
                       ),
                       child: Text(
@@ -465,6 +588,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // GÉNERO
                   DropdownButtonFormField<String>(
                     value: _generoSeleccionado,
                     decoration: _inputDecoration('Género *', Icons.wc),
@@ -485,32 +610,54 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // 🔥 EMAIL - Validación estricta
                   TextFormField(
                     controller: _mailController,
                     decoration: _inputDecoration(
-                      'Correo Electrónico',
+                      'Correo Electrónico *',
                       Icons.email,
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value != null && value.isNotEmpty) {
-                        final emailRegex = RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        );
-                        if (!emailRegex.hasMatch(value)) {
-                          return 'Correo inválido';
-                        }
+                      if (value == null || value.isEmpty) {
+                        return 'El correo es obligatorio';
+                      }
+                      final emailRegex = RegExp(
+                        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                      );
+                      if (!emailRegex.hasMatch(value)) {
+                        return 'Ingresa un correo válido';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // 🔥 TELÉFONO - Solo números, exactamente 8 dígitos
                   TextFormField(
                     controller: _telefonoController,
-                    decoration: _inputDecoration('Teléfono', Icons.phone),
+                    decoration: _inputDecoration(
+                      'Teléfono (8 dígitos)',
+                      Icons.phone,
+                    ),
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(8),
+                    ],
+                    validator: (value) {
+                      if (value != null &&
+                          value.isNotEmpty &&
+                          value.length != 8) {
+                        return 'El teléfono debe tener exactamente 8 dígitos';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
+
+                  // DOMICILIO
                   TextFormField(
                     controller: _domicilioController,
                     decoration: _inputDecoration(
@@ -518,24 +665,36 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       Icons.location_on,
                     ),
                     maxLines: 2,
+                    inputFormatters: [LengthLimitingTextInputFormatter(200)],
                   ),
                   const SizedBox(height: 32),
+
                   _buildSectionTitle('Información de Cuenta', Icons.lock),
                   const SizedBox(height: 16),
+
+                  // 🔥 USUARIO - Generado automáticamente
                   TextFormField(
                     controller: _usuarioController,
                     decoration: _inputDecoration(
-                      'Usuario *',
+                      _isEditing
+                          ? 'Usuario *'
+                          : 'Usuario * (generado automáticamente)',
                       Icons.account_circle,
                     ),
+                    enabled: _isEditing, // Solo editable al editar
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'El usuario es obligatorio';
+                      }
+                      if (value.length < 3) {
+                        return 'Mínimo 3 caracteres';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // ROL
                   DropdownButtonFormField<Rol>(
                     value: _rolSeleccionado,
                     decoration: _inputDecoration('Rol *', Icons.badge),
@@ -556,6 +715,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     },
                   ),
                   const SizedBox(height: 32),
+
+                  // BOTÓN
                   ElevatedButton(
                     onPressed: _isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(

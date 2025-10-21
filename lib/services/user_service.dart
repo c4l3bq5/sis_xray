@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user_models.dart';
-import 'dart:math';
 import 'auth_service.dart';
 
 class UserService {
@@ -16,16 +15,6 @@ class UserService {
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
-  }
-
-  String _generateRandomPassword(int length) {
-    const chars =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*';
-    final random = Random();
-    return List.generate(
-      length,
-      (index) => chars[random.nextInt(chars.length)],
-    ).join();
   }
 
   dynamic _handleResponse(http.Response response) {
@@ -64,7 +53,7 @@ class UserService {
       final responseData = _handleResponse(response);
       return UsuariosResponse.fromJson(responseData);
     } catch (e) {
-      print('  Error obteniendo usuarios: $e');
+      print('❌ Error obteniendo usuarios: $e');
       rethrow;
     }
   }
@@ -80,7 +69,7 @@ class UserService {
       final responseData = _handleResponse(response);
       return Usuario.fromJson(responseData['data']);
     } catch (e) {
-      print('  Error obteniendo usuario: $e');
+      print('❌ Error obteniendo usuario: $e');
       rethrow;
     }
   }
@@ -103,7 +92,7 @@ class UserService {
       _handleResponse(response);
       return true;
     } catch (e) {
-      print('  Error actualizando datos personales: $e');
+      print('❌ Error actualizando datos personales: $e');
       rethrow;
     }
   }
@@ -123,12 +112,13 @@ class UserService {
       _handleResponse(response);
       return true;
     } catch (e) {
-      print('  Error actualizando usuario: $e');
+      print('❌ Error actualizando usuario: $e');
       rethrow;
     }
   }
 
-  // Crear usuario: Primero crear persona, luego usuario
+  // 🔥 MODIFICADO: Crear usuario sin generar contraseña en frontend
+  // El backend genera automáticamente la contraseña temporal
   Future<Map<String, dynamic>> crearUsuario({
     required String nombre,
     required String aPaterno,
@@ -144,7 +134,6 @@ class UserService {
   }) async {
     try {
       final headers = await _getHeaders();
-      final passwordGenerada = _generateRandomPassword(8);
 
       // PASO 1: Crear persona
       final personaData = {
@@ -170,14 +159,16 @@ class UserService {
 
       final personaResponseData = _handleResponse(personaResponse);
       final personaId = personaResponseData['data']['id'];
-      print('   Persona creada con ID: $personaId');
+      print('✅ Persona creada con ID: $personaId');
 
-      // PASO 2: Crear usuario
+      // PASO 2: Crear usuario SIN enviar contraseña
+      // ✅ El backend genera automáticamente la contraseña temporal
       final usuarioData = {
         'persona_id': personaId,
         'rol_id': rolId,
         'usuario': usuario,
-        'contrasena': passwordGenerada,
+        // ❌ NO enviar 'contrasena' aquí
+        // El backend detecta que no viene y genera una temporal automáticamente
       };
 
       print('📝 Creando usuario...');
@@ -190,15 +181,20 @@ class UserService {
           .timeout(const Duration(seconds: 30));
 
       final usuarioResponseData = _handleResponse(usuarioResponse);
-      print('   Usuario creado exitosamente');
 
-      // Retornar usuario + contraseña para mostrar al admin
+      // ✅ Extraer la contraseña temporal que generó el backend
+      final passwordGenerada = usuarioResponseData['data']['temporaryPassword'];
+
+      print('✅ Usuario creado exitosamente');
+      print('🔑 Contraseña temporal del backend: $passwordGenerada');
+
+      // Retornar la contraseña generada por el backend
       return {
         'usuario': usuarioResponseData['data'],
-        'passwordGenerada': passwordGenerada,
+        'passwordGenerada': passwordGenerada, // ✅ Esta es la correcta
       };
     } catch (e) {
-      print('  Error creando usuario: $e');
+      print('❌ Error creando usuario: $e');
       rethrow;
     }
   }
@@ -214,7 +210,7 @@ class UserService {
       _handleResponse(response);
       return true;
     } catch (e) {
-      print(' Error activando usuario: $e');
+      print('❌ Error activando usuario: $e');
       rethrow;
     }
   }
@@ -230,7 +226,7 @@ class UserService {
       _handleResponse(response);
       return true;
     } catch (e) {
-      print(' Error desactivando usuario: $e');
+      print('❌ Error desactivando usuario: $e');
       rethrow;
     }
   }
@@ -246,7 +242,7 @@ class UserService {
       _handleResponse(response);
       return true;
     } catch (e) {
-      print(' Error habilitando MFA: $e');
+      print('❌ Error habilitando MFA: $e');
       rethrow;
     }
   }
@@ -262,7 +258,7 @@ class UserService {
       _handleResponse(response);
       return true;
     } catch (e) {
-      print(' Error deshabilitando MFA: $e');
+      print('❌ Error deshabilitando MFA: $e');
       rethrow;
     }
   }
