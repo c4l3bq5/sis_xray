@@ -6,7 +6,8 @@ import '../models/patient_models.dart'; // ← Usar tu modelo existente
 import 'auth_service.dart';
 
 class MedicalHistoryService {
-  static const String baseUrl = 'https://apimed-production.up.railway.app/api';
+  static const String baseUrl =
+      'https://visiting-prue-c4l3b-49e1cccc.koyeb.app/api';
   final AuthService _authService = AuthService();
 
   Future<Map<String, String>> _getHeaders() async {

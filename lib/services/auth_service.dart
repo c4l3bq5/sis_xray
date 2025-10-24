@@ -6,7 +6,8 @@ import '../models/auth_models.dart';
 import '../models/user_models.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://apimed-production.up.railway.app/api';
+  static const String baseUrl =
+      'https://visiting-prue-c4l3b-49e1cccc.koyeb.app/api';
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Map<String, String> getHeaders({String? token}) {
