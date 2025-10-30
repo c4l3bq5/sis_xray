@@ -771,11 +771,16 @@ class _XRayScreenState extends State<XRayScreen> {
       );
     }
 
-    // Extraer datos de la estructura JSON
+    // ============ EXTRAER DATOS DE LA API ============
     String region = 'N/A';
     double confidence = 0.0;
     int detectedBones = 0;
-    int fracturesDetected = 0;
+    int totalFractures = 0;
+    int alertCount = 0;
+    int sicknessCount = 0;
+    int majorFractures = 0;
+    int microfractures = 0;
+    int luxationCount = 0;
     bool requiresAttention = false;
     List<dynamic> fractureDetails = [];
 
@@ -793,26 +798,54 @@ class _XRayScreenState extends State<XRayScreen> {
       detectedBones = detectedBonesList?.length ?? 0;
     }
 
-    // Leer fracture_analysis
     if (result.containsKey('fracture_analysis')) {
       final fractureAnalysis =
           result['fracture_analysis'] as Map<String, dynamic>?;
-      fracturesDetected = fractureAnalysis?['total_fractures'] as int? ?? 0;
+      totalFractures = fractureAnalysis?['total_fractures'] as int? ?? 0;
+      alertCount = fractureAnalysis?['alert_count'] as int? ?? 0;
+      sicknessCount = fractureAnalysis?['sickness_count'] as int? ?? 0;
+      majorFractures = fractureAnalysis?['major_fractures'] as int? ?? 0;
+      microfractures = fractureAnalysis?['microfractures'] as int? ?? 0;
+      luxationCount = fractureAnalysis?['luxation_count'] as int? ?? 0;
       requiresAttention =
           fractureAnalysis?['requires_immediate_attention'] as bool? ?? false;
       fractureDetails = fractureAnalysis?['fractures'] as List? ?? [];
+    }
+
+    // ============ DETERMINAR COLOR Y MENSAJE ============
+    Color mainColor = Colors.green;
+    String mainMessage = ' Sin Fracturas Evidentes';
+    IconData mainIcon = Icons.check_circle;
+
+    if (alertCount > 0) {
+      mainColor = Colors.purple;
+      mainMessage = ' ALERTA CRÍTICA';
+      mainIcon = Icons.emergency;
+    } else if (majorFractures > 0) {
+      mainColor = Colors.red;
+      mainMessage = ' FRACTURAS DETECTADAS';
+      mainIcon = Icons.warning;
+    } else if (luxationCount > 0) {
+      mainColor = Colors.orange;
+      mainMessage = ' LUXACIÓN DETECTADA';
+      mainIcon = Icons.broken_image;
+    } else if (sicknessCount > 0) {
+      mainColor = Colors.blue;
+      mainMessage = ' ENFERMEDAD DETECTADA';
+      mainIcon = Icons.medical_services;
+    } else if (microfractures > 0) {
+      mainColor = Colors.amber;
+      mainMessage = ' SOSPECHA DE MICROFRACTURA';
+      mainIcon = Icons.visibility;
     }
 
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: requiresAttention ? Colors.red[50] : Colors.green[50],
+        color: mainColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: requiresAttention ? Colors.red : Colors.green,
-          width: 2,
-        ),
+        border: Border.all(color: mainColor, width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.2),
@@ -824,24 +857,18 @@ class _XRayScreenState extends State<XRayScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado
+          // ============ ENCABEZADO ============
           Row(
             children: [
-              Icon(
-                requiresAttention ? Icons.warning : Icons.check_circle,
-                size: 40,
-                color: requiresAttention ? Colors.red : Colors.green,
-              ),
+              Icon(mainIcon, size: 40, color: mainColor),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  requiresAttention
-                      ? ' FRACTURAS DETECTADAS'
-                      : ' Sin Fracturas Evidentes',
+                  mainMessage,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: requiresAttention ? Colors.red : Colors.green,
+                    color: mainColor,
                   ),
                 ),
               ),
@@ -850,111 +877,128 @@ class _XRayScreenState extends State<XRayScreen> {
 
           const Divider(height: 30, thickness: 1.5),
 
-          // Región
+          // ============ INFORMACIÓN BÁSICA ============
           _buildInfoRow(
             'Región Analizada',
             region,
             Icons.location_on,
             Colors.blueAccent,
           ),
-
-          // Confianza
           _buildInfoRow(
             'Nivel de Confianza',
             '${(confidence * 100).toStringAsFixed(1)}%',
             Icons.psychology,
             confidence > 0.8 ? Colors.green : Colors.orange,
           ),
-
-          // Huesos detectados
           _buildInfoRow(
             'Estructuras Óseas',
             '$detectedBones huesos identificados',
-            Icons.broken_image,
+            Icons.healing,
             Colors.deepPurple,
           ),
 
-          // Fracturas
-          _buildInfoRow(
-            'Fracturas Detectadas',
-            fracturesDetected > 0
-                ? '$fracturesDetected fractura(s)'
-                : 'Ninguna',
-            Icons.crisis_alert,
-            fracturesDetected > 0 ? Colors.red : Colors.green,
-          ),
+          const Divider(height: 24, thickness: 1),
 
-          // Detalles de fracturas
-          if (fracturesDetected > 0 && fractureDetails.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Text(
-              ' Detalles de Fracturas:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.red,
-              ),
+          // ============ RESUMEN DE HALLAZGOS ============
+          const Text(
+            ' Resumen de Hallazgos:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.black87,
             ),
-            const SizedBox(height: 8),
-            ...List.generate(fractureDetails.length, (index) {
-              final fracture = fractureDetails[index] as Map<String, dynamic>;
+          ),
+          const SizedBox(height: 12),
 
-              final affectedBone =
-                  fracture['affected_bone']?.toString() ?? 'Desconocido';
-              final fractureType =
-                  fracture['fracture_type'] as Map<String, dynamic>?;
-              final classification =
-                  fractureType?['classification']?.toString() ?? 'Fractura';
+          if (alertCount > 0)
+            _buildHallazgoChip(' Alertas Críticas', alertCount, Colors.purple),
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[100],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[300]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${index + 1}. $classification',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Hueso afectado: $affectedBone',
-                      style: TextStyle(fontSize: 13, color: Colors.red[900]),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
+          if (sicknessCount > 0)
+            _buildHallazgoChip(' Enfermedades', sicknessCount, Colors.blue),
 
-          // Recomendación médica
-          if (requiresAttention) ...[
-            const Divider(height: 30, thickness: 1.5),
+          if (majorFractures > 0)
+            _buildHallazgoChip(
+              ' Fracturas Mayores',
+              majorFractures,
+              Colors.red,
+            ),
+
+          if (luxationCount > 0)
+            _buildHallazgoChip(' Luxaciones', luxationCount, Colors.orange),
+
+          if (microfractures > 0)
+            _buildHallazgoChip(' Microfracturas', microfractures, Colors.amber),
+
+          if (totalFractures == 0)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange[100],
+                color: Colors.green[100],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'No se detectaron hallazgos patológicos',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ============ DETALLES POR CATEGORÍA ============
+          if (fractureDetails.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Text(
+              ' Detalles de Hallazgos:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Agrupar por tipo
+            ...fractureDetails.map((item) {
+              final fracture = item as Map<String, dynamic>;
+              final type = fracture['type']?.toString() ?? 'FRACTURE';
+
+              return _buildFractureCard(fracture, type);
+            }).toList(),
+          ],
+
+          // ============ RECOMENDACIÓN CLÍNICA ============
+          if (result.containsKey('clinical_recommendation')) ...[
+            const Divider(height: 30, thickness: 1.5),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: requiresAttention ? Colors.orange[100] : Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: requiresAttention ? Colors.orange : Colors.blue,
+                  width: 2,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.medical_services, color: Colors.orange),
+                      Icon(
+                        Icons.medical_information,
+                        color: requiresAttention ? Colors.orange : Colors.blue,
+                        size: 24,
+                      ),
                       const SizedBox(width: 8),
                       const Text(
-                        'Recomendación Médica',
+                        'Recomendación Clínica',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -962,12 +1006,185 @@ class _XRayScreenState extends State<XRayScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '• Consulte con un especialista inmediatamente\n'
-                    '• Este sistema es de apoyo, no diagnóstico definitivo\n'
-                    '• Requiere validación por profesional médico',
-                    style: TextStyle(height: 1.5, fontSize: 13),
+                  const SizedBox(height: 12),
+                  Text(
+                    result['clinical_recommendation'].toString(),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (requiresAttention) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      ' Este sistema es de apoyo diagnóstico. Requiere validación por un profesional médico calificado.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============ WIDGETS AUXILIARES ============
+
+  Widget _buildHallazgoChip(String label, int count, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Text(
+              count.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFractureCard(Map<String, dynamic> fracture, String type) {
+    // Determinar color y emoji según tipo
+    Color cardColor;
+    String typeLabel;
+
+    switch (type) {
+      case 'ALERT':
+        cardColor = Colors.purple;
+        typeLabel = 'ALERTA CRÍTICA';
+        break;
+      case 'SICKNESS':
+        cardColor = Colors.blue;
+        typeLabel = 'ENFERMEDAD';
+        break;
+      case 'LUXATION':
+        cardColor = Colors.orange;
+        typeLabel = 'LUXACIÓN';
+        break;
+      default:
+        cardColor = Colors.red;
+        typeLabel = 'FRACTURA';
+    }
+
+    final affectedBone = fracture['affected_bone']?.toString() ?? 'Desconocido';
+    final description = fracture['description']?.toString() ?? '';
+    final fractureType = fracture['fracture_type'] as Map<String, dynamic>?;
+    final management = fractureType?['management']?.toString() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cardColor, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Encabezado
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  typeLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: cardColor,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Descripción
+          if (description.isNotEmpty)
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: cardColor.withOpacity(0.9),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
+          // Hueso afectado
+          Row(
+            children: [
+              Icon(Icons.location_on, size: 16, color: cardColor),
+              const SizedBox(width: 4),
+              Text(
+                'Hueso afectado: ',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  affectedBone,
+                  style: TextStyle(fontSize: 13, color: cardColor),
+                ),
+              ),
+            ],
+          ),
+
+          // Manejo
+          if (management.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cardColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.medical_services, size: 16, color: cardColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      management,
+                      style: const TextStyle(fontSize: 12, height: 1.4),
+                    ),
                   ),
                 ],
               ),
@@ -1255,7 +1472,7 @@ class _XRayScreenState extends State<XRayScreen> {
                           children: [
                             Text(
                               _filtersApplied
-                                  ? '✓ Imagen optimizada para análisis'
+                                  ? ' Imagen optimizada para análisis'
                                   : 'Imagen lista para análisis',
                               style: const TextStyle(
                                 fontSize: 14,

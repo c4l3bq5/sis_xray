@@ -29,9 +29,9 @@ class LoginResponse {
 class LoginData {
   final String token;
   final UserData user;
-  final bool? requiresMFA; // 🔥 NUEVO: Indica si necesita MFA
-  final bool? requiresPasswordChange; // 🔥 NUEVO: Contraseña temporal
-  final int? userId; // 🔥 NUEVO: Para flujo MFA
+  final bool? requiresMFA;
+  final bool? requiresPasswordChange;
+  final int? userId;
 
   LoginData({
     required this.token,
@@ -167,8 +167,6 @@ class MFAVerifyData {
     );
   }
 }
-
-// 🔥 MODELO PARA CAMBIO DE CONTRASEÑA TEMPORAL
 
 class ChangePasswordRequest {
   final int userId;

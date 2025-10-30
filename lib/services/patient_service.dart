@@ -147,7 +147,7 @@ class PatientService {
         'domicilio': paciente.domicilio,
       };
 
-      print('🔵 DATOS A ENVIAR: $personaData'); // ← AGREGA ESTA LÍNEA
+      print(' DATOS A ENVIAR: $personaData'); // ← AGREGA ESTA LÍNEA
 
       // Crear la persona primero
       print(' Creando persona...');
@@ -173,7 +173,7 @@ class PatientService {
         'provincia': paciente.provincia,
       };
 
-      print('🔵 DATOS PACIENTE A ENVIAR: $pacienteData');
+      print(' DATOS PACIENTE A ENVIAR: $pacienteData');
 
       // Crear el paciente con la persona_id
       print(' Creando paciente...');

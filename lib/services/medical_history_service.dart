@@ -87,7 +87,7 @@ class MedicalHistoryService {
       }).toList();
 
       print('  Total pacientes: ${allPatients.length}');
-      print('📋 Pacientes con historial: ${patientIdsWithHistory.length}');
+      print(' Pacientes con historial: ${patientIdsWithHistory.length}');
       print('  Pacientes SIN historial: ${patientsWithoutHistory.length}');
 
       return patientsWithoutHistory;
@@ -154,7 +154,7 @@ class MedicalHistoryService {
     CreateMedicalHistoryRequest request,
   ) async {
     try {
-      print('🏥 Creando historial clínico...');
+      print(' Creando historial clínico...');
       print('Datos: ${request.toJson()}');
 
       final response = await http

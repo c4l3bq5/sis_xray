@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String _baseUrl =
-      'https://sheet-armor-jeans-info.trycloudflare.com';
+      'https://funeral-slight-guarantees-final.trycloudflare.com';
 
   /// Analiza una imagen de radiografía
   ///
@@ -23,8 +23,8 @@ class ApiService {
     final uri = Uri.parse('$_baseUrl/analyze');
 
     try {
-      print('📤 Enviando imagen a: $_baseUrl/analyze');
-      print('📦 Tamaño: ${(imageBytes.length / 1024).toStringAsFixed(1)} KB');
+      print(' Enviando imagen a: $_baseUrl/analyze');
+      print(' Tamaño: ${(imageBytes.length / 1024).toStringAsFixed(1)} KB');
 
       // Crear request multipart
       final request = http.MultipartRequest('POST', uri);
@@ -45,7 +45,7 @@ class ApiService {
         'Content-Type': 'multipart/form-data',
       });
 
-      print('✅ Request preparado');
+      print(' Request preparado');
       print('   Campo: image');
       print('   Tipo: image/jpeg');
 
@@ -53,29 +53,29 @@ class ApiService {
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 120),
         onTimeout: () {
-          throw Exception('⏱️ Timeout: El servidor tardó más de 120 segundos');
+          throw Exception(' Timeout: El servidor tardó más de 120 segundos');
         },
       );
 
       // Convertir a Response
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('📥 Respuesta recibida: ${response.statusCode}');
+      print(' Respuesta recibida: ${response.statusCode}');
 
       // Manejar respuestas
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
 
-        print('✅ Análisis exitoso');
-        print('📊 Status: ${jsonResponse['status']}');
+        print(' Análisis exitoso');
+        print(' Status: ${jsonResponse['status']}');
 
         // Verificar si hay imagen anotada
         if (jsonResponse.containsKey('annotated_image_base64')) {
           final base64Length =
               (jsonResponse['annotated_image_base64'] as String).length;
-          print('🖼️ Imagen anotada incluida: $base64Length caracteres');
+          print(' Imagen anotada incluida: $base64Length caracteres');
         } else {
-          print('ℹ️ Sin imagen anotada (no hay fracturas)');
+          print(' Sin imagen anotada (no hay fracturas)');
         }
 
         return jsonResponse;
@@ -84,37 +84,37 @@ class ApiService {
         try {
           final errorData = json.decode(response.body);
           throw Exception(
-            '❌ Error de validación: ${errorData['detail'] ?? errorData['message'] ?? response.body}',
+            ' Error de validación: ${errorData['detail'] ?? errorData['message'] ?? response.body}',
           );
         } catch (e) {
-          throw Exception('❌ Error 400: ${response.body}');
+          throw Exception(' Error 400: ${response.body}');
         }
       } else if (response.statusCode == 500) {
         // Error interno del servidor
-        throw Exception('🔥 Error del servidor (500): ${response.body}');
+        throw Exception(' Error del servidor (500): ${response.body}');
       } else if (response.statusCode == 503) {
-        throw Exception('⏳ Servicio no disponible: Modelos aún cargando');
+        throw Exception(' Servicio no disponible: Modelos aún cargando');
       } else {
         throw Exception(
-          '❓ Error desconocido (${response.statusCode}): ${response.body}',
+          ' Error desconocido (${response.statusCode}): ${response.body}',
         );
       }
     } on http.ClientException catch (e) {
       throw Exception(
-        '🌐 Error de conexión: No se pudo conectar al servidor.\n'
+        ' Error de conexión: No se pudo conectar al servidor.\n'
         '¿El túnel de Cloudflare está activo?\n'
         'Error: $e',
       );
     } on FormatException catch (e) {
       throw Exception(
-        '🔧 Error de formato: Respuesta inválida del servidor.\n'
+        ' Error de formato: Respuesta inválida del servidor.\n'
         'Error: $e',
       );
     } catch (e) {
       if (e.toString().contains('Timeout')) {
-        throw Exception('⏱️ Timeout: El análisis tardó demasiado');
+        throw Exception(' Timeout: El análisis tardó demasiado');
       }
-      throw Exception('💥 Error inesperado: ${e.toString()}');
+      throw Exception(' Error inesperado: ${e.toString()}');
     }
   }
 
@@ -129,12 +129,12 @@ class ApiService {
         final data = json.decode(response.body);
         final modelsLoaded = data['models_loaded'] as bool? ?? false;
 
-        print('💚 API saludable - Modelos cargados: $modelsLoaded');
+        print(' API saludable - Modelos cargados: $modelsLoaded');
         return modelsLoaded;
       }
       return false;
     } catch (e) {
-      print('💔 Health check falló: $e');
+      print(' Health check falló: $e');
       return false;
     }
   }
