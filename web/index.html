@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="xray_sis_project">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>xray_sis_project</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- CRÍTICO: CSP con blob: para permitir image_picker en Flutter Web -->
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob: gap:;
+                 img-src * 'self' data: blob: http: https:;
+                 connect-src * 'self' blob: http://127.0.0.1:3000 http://localhost:3000 ws: wss:;
+                 script-src * 'self' 'unsafe-inline' 'unsafe-eval';
+                 style-src * 'self' 'unsafe-inline';">
+  
+  <script>
+    // Script para permitir CORS en desarrollo
+    if (window.flutterWebRenderer) {
+      console.log('Flutter Web Renderer initialized');
+    }
+    
+    // Permitir conexiones locales
+    (function() {
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && 
+            args[0].includes('localhost:3000') || args[0].includes('127.0.0.1:3000')) {
+          if (!args[1]) args[1] = {};
+          args[1].mode = 'cors';
+          args[1].credentials = 'omit';
+        }
+        return originalFetch.apply(this, args);
+      };
+    })();
+  </script>
+
+  <script>
+    if (window.location.hash === '#/home' || window.location.hash === '#/xray') {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        window.location.hash = '#/';
+      }
+    }
+  </script>
+
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
