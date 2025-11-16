@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String _baseUrl =
-      'https://increase-side-compiled-value.trycloudflare.com';
+      'https://full-tries-sweet-african.trycloudflare.com';
 
   /// Analiza una imagen de radiografía
   ///

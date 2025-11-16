@@ -23,6 +23,18 @@ class Log {
   });
 
   factory Log.fromJson(Map<String, dynamic> json) {
+    // Construir nombre completo si viene separado
+    String? nombreCompleto;
+    if (json['nombre'] != null) {
+      nombreCompleto = json['nombre'].toString();
+      if (json['a_paterno'] != null) {
+        nombreCompleto = '$nombreCompleto ${json['a_paterno']}';
+      }
+      if (json['a_materno'] != null) {
+        nombreCompleto = '$nombreCompleto ${json['a_materno']}';
+      }
+    }
+    
     return Log(
       id: json['id'] ?? 0,
       usuarioId: json['usuario_id'],
@@ -32,7 +44,7 @@ class Log {
         json['timestamp'] ?? DateTime.now().toIso8601String(),
       ),
       usuario: json['usuario'],
-      nombreUsuario: json['nombre_usuario'],
+      nombreUsuario: json['nombre_usuario'] ?? nombreCompleto,
     );
   }
 
@@ -59,7 +71,7 @@ class Log {
       return Colors.blue;
     } else if (accion.contains('DELETE')) {
       return Colors.red;
-    } else if (accion.contains('sesiones')) {
+    } else if (accion.contains('sesiones') || accion.contains('login')) {
       return Colors.orange;
     }
     return Colors.grey;
@@ -72,7 +84,7 @@ class Log {
       return Icons.edit;
     } else if (accion.contains('DELETE')) {
       return Icons.delete;
-    } else if (accion.contains('sesiones')) {
+    } else if (accion.contains('sesiones') || accion.contains('login')) {
       return Icons.login;
     }
     return Icons.info;
@@ -99,61 +111,70 @@ class LogsResponse {
       logs: json['data'] != null
           ? (json['data'] as List).map((l) => Log.fromJson(l)).toList()
           : [],
-      total: json['total'] ?? 0,
+      total: json['count'] ?? json['total'] ?? 0,
     );
   }
 }
 
 class LogStats {
   final int totalLogs;
-  final int hoy;
-  final int estaSemana;
-  final int esteMes;
+  final int usuariosActivos;
+  final int logsHoy;
+  final int inserciones;
+  final int actualizaciones;
+  final int eliminaciones;
+  
+  // Propiedades para las estadísticas detalladas
   final Map<String, int> porAccion;
   final Map<String, int> porUsuario;
 
   LogStats({
     required this.totalLogs,
-    required this.hoy,
-    required this.estaSemana,
-    required this.esteMes,
-    required this.porAccion,
-    required this.porUsuario,
+    required this.usuariosActivos,
+    required this.logsHoy,
+    required this.inserciones,
+    required this.actualizaciones,
+    required this.eliminaciones,
+    this.porAccion = const {},
+    this.porUsuario = const {},
   });
 
   factory LogStats.fromJson(Map<String, dynamic> json) {
-    // Convertir los valores a int de forma segura
-    Map<String, int> convertToIntMap(dynamic data) {
-      final Map<String, int> result = {};
-      if (data != null && data is Map) {
-        data.forEach((key, value) {
-          if (value is int) {
-            result[key.toString()] = value;
-          } else if (value is String) {
-            result[key.toString()] = int.tryParse(value) ?? 0;
-          } else {
-            result[key.toString()] = 0;
-          }
-        });
+    int safeParseInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    Map<String, int> parseMapStats(dynamic value) {
+      if (value == null) return {};
+      if (value is Map) {
+        return value.map((key, val) => MapEntry(
+          key.toString(),
+          safeParseInt(val),
+        ));
       }
-      return result;
+      return {};
     }
 
     return LogStats(
-      totalLogs: json['total_logs'] is int
-          ? json['total_logs']
-          : int.tryParse(json['total_logs'].toString()) ?? 0,
-      hoy: json['hoy'] is int
-          ? json['hoy']
-          : int.tryParse(json['hoy'].toString()) ?? 0,
-      estaSemana: json['esta_semana'] is int
-          ? json['esta_semana']
-          : int.tryParse(json['esta_semana'].toString()) ?? 0,
-      esteMes: json['este_mes'] is int
-          ? json['este_mes']
-          : int.tryParse(json['este_mes'].toString()) ?? 0,
-      porAccion: convertToIntMap(json['por_accion']),
-      porUsuario: convertToIntMap(json['por_usuario']),
+      totalLogs: safeParseInt(json['total_logs']),
+      usuariosActivos: safeParseInt(json['usuarios_activos']),
+      logsHoy: safeParseInt(json['logs_hoy']),
+      inserciones: safeParseInt(json['inserciones']),
+      actualizaciones: safeParseInt(json['actualizaciones']),
+      eliminaciones: safeParseInt(json['eliminaciones']),
+      porAccion: parseMapStats(json['por_accion']),
+      porUsuario: parseMapStats(json['por_usuario']),
     );
   }
+  
+  // Propiedades calculadas para mantener compatibilidad
+  int get hoy => logsHoy;
+  int get estaSemana => totalLogs; // Placeholder
+  int get esteMes => totalLogs; // Placeholder
+  int get inserts => inserciones;
+  int get updates => actualizaciones;
+  int get deletes => eliminaciones;
 }

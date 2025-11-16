@@ -2,7 +2,7 @@
 
 /// Modelo de historial clínico
 class MedicalHistory {
-  final int id;
+  final String id; // ⚠️ Ahora es String: "0101", "0203", etc.
   final int pacienteId;
   final int usuarioId;
   final String diagnostico;
@@ -34,7 +34,7 @@ class MedicalHistory {
 
   factory MedicalHistory.fromJson(Map<String, dynamic> json) {
     return MedicalHistory(
-      id: json['id'] ?? 0,
+      id: json['id']?.toString() ?? '0', // ⚠️ Convertir a String
       pacienteId: json['paciente_id'] ?? 0,
       usuarioId: json['usuario_id'] ?? 0,
       diagnostico: json['diagnostico'] ?? '',
@@ -55,6 +55,7 @@ class MedicalHistory {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'paciente_id': pacienteId,
       'diagnostico': diagnostico,
       'tratamiento': tratamiento,

@@ -1446,6 +1446,38 @@ class _XRayScreenState extends State<XRayScreen> {
 
                 if (_apiResult != null) _buildAnalysisResult(_apiResult!),
 
+                if (_apiResult != null && 
+    _apiResult!['status'] == 'success' && 
+    _annotatedImageBytes != null)
+  Container(
+    margin: const EdgeInsets.only(top: 20),
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      onPressed: () {
+        // Devolver datos al formulario
+        Navigator.pop(context, {
+          'originalImage': _imageBytes,
+          'annotatedImage': _annotatedImageBytes,
+          'analysisResult': _apiResult,
+        });
+      },
+      icon: const Icon(Icons.arrow_forward, size: 24),
+      label: const Text(
+        'Continuar al Formulario',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 4,
+      ),
+    ),
+  ),
+
                 if (_annotatedImageBytes != null) _buildImageComparison(),
 
                 const SizedBox(height: 20),

@@ -1,9 +1,11 @@
 // lib/screens/patient_history_detail_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/patient_models.dart';
 import '../models/medical_history_models.dart';
 import '../services/medical_history_service.dart';
+import '../services/graphql_service.dart';
 import 'medical_history_form_screen.dart';
 
 class PatientHistoryDetailScreen extends StatefulWidget {
@@ -244,13 +246,28 @@ class _PatientHistoryDetailScreenState
   }
 
   void _navigateToEdit(MedicalHistory history) async {
+    // Obtener imágenes desde GraphQL
+    List<Map<String, dynamic>> images = [];
+    try {
+      images = await GraphQLService.getImagesByClinicHistory(history.id);
+      print(' Imágenes encontradas: ${images.length}');
+    } catch (e) {
+      print(' No se pudieron cargar imágenes: $e');
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MedicalHistoryFormScreen(
           patient: widget.patient,
-          previousHistory: history,
-          isNewEntry: true, // Nuevo registro/avance
+          existingHistory: history,
+          // Pasar imágenes si existen
+          originalImageBytes: images.isNotEmpty 
+            ? base64Decode(images.first['image']) 
+            : null,
+          annotatedImageBytes: images.isNotEmpty 
+            ? base64Decode(images.first['mask']) 
+            : null,
         ),
       ),
     );
@@ -261,7 +278,7 @@ class _PatientHistoryDetailScreenState
   }
 
   void _navigateToAddEntry() async {
-    // Si ya tiene historiales, vamos al último para agregar un avance
+    // Si ya tiene historiales, editar el último
     if (_histories.isNotEmpty) {
       final latestHistory = _histories.first;
       _navigateToEdit(latestHistory);
@@ -296,7 +313,6 @@ class _HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -364,7 +380,6 @@ class _HistoryCard extends StatelessWidget {
             ),
           ),
 
-          // Content
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -396,7 +411,6 @@ class _HistoryCard extends StatelessWidget {
             ),
           ),
 
-          // Actions
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: SizedBox(
@@ -404,7 +418,7 @@ class _HistoryCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit, size: 18),
-                label: const Text('Registrar Nueva Consulta'),
+                label: const Text('Editar Registro'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isLatest
                       ? Colors.green[600]

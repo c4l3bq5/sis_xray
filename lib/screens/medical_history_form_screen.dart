@@ -1,21 +1,28 @@
 // lib/screens/medical_history_form_screen.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/medical_history_models.dart';
 import '../models/patient_models.dart';
 import '../services/medical_history_service.dart';
+import '../services/graphql_service.dart';
+import 'xray_screen.dart';
 
 class MedicalHistoryFormScreen extends StatefulWidget {
   final Paciente patient;
-  final MedicalHistory? previousHistory; // Historial anterior para referencia
-  final bool
-  isNewEntry; // true = nuevo registro/avance, false = primer historial
+  final MedicalHistory? existingHistory;
+  
+  // Datos de imágenes (opcionales)
+  final Uint8List? originalImageBytes;
+  final Uint8List? annotatedImageBytes;
+  final Map<String, dynamic>? analysisResult;
 
   const MedicalHistoryFormScreen({
     super.key,
     required this.patient,
-    this.previousHistory,
-    this.isNewEntry = false,
+    this.existingHistory,
+    this.originalImageBytes,
+    this.annotatedImageBytes,
+    this.analysisResult,
   });
 
   @override
@@ -34,20 +41,34 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
   bool _hasChanges = false;
+  
+  // Datos de imágenes
+  Uint8List? _originalImageBytes;
+  Uint8List? _annotatedImageBytes;
+  Map<String, dynamic>? _analysisResult;
+  
+  bool get _isEditing => widget.existingHistory != null;
+  bool get _hasImages => _originalImageBytes != null && _annotatedImageBytes != null;
 
   @override
   void initState() {
     super.initState();
+    
+    // Copiar imágenes del widget
+    _originalImageBytes = widget.originalImageBytes;
+    _annotatedImageBytes = widget.annotatedImageBytes;
+    _analysisResult = widget.analysisResult;
 
-    // Si es un nuevo registro/avance, pre-llenar con datos del historial anterior
-    if (widget.isNewEntry && widget.previousHistory != null) {
+    if (_isEditing) {
       _diagnosticoController = TextEditingController(
-        text: widget.previousHistory!.diagnostico,
+        text: widget.existingHistory!.diagnostico,
       );
       _tratamientoController = TextEditingController(
-        text: widget.previousHistory!.tratamiento,
+        text: widget.existingHistory!.tratamiento,
       );
-      _avanceController = TextEditingController();
+      _avanceController = TextEditingController(
+        text: widget.existingHistory!.avance ?? '',
+      );
     } else {
       _diagnosticoController = TextEditingController();
       _tratamientoController = TextEditingController();
@@ -61,9 +82,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
 
   void _onFieldChanged() {
     if (!_hasChanges) {
-      setState(() {
-        _hasChanges = true;
-      });
+      setState(() => _hasChanges = true);
     }
   }
 
@@ -75,14 +94,38 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
     super.dispose();
   }
 
+  // Helpers para obtener info del análisis
+  String get _area {
+    if (_analysisResult == null) return 'upper'; // default
+    final regionAnalysis = _analysisResult!['region_analysis'] as Map<String, dynamic>?;
+    final region = regionAnalysis?['region']?.toString().toLowerCase() ?? 'upper';
+    return region.contains('lower') ? 'lower' : 'upper';
+  }
+
+  String get _annotationsText {
+    if (_analysisResult == null) return 'Análisis pendiente';
+    
+    final fractureAnalysis = _analysisResult!['fracture_analysis'] as Map<String, dynamic>?;
+    if (fractureAnalysis == null) return 'Sin hallazgos';
+    
+    final totalFractures = fractureAnalysis['total_fractures'] as int? ?? 0;
+    if (totalFractures == 0) return 'No se detectaron fracturas';
+    
+    return 'Fracturas detectadas: $totalFractures';
+  }
+
+  bool get _hasFractures {
+    if (_analysisResult == null) return false;
+    final fractureAnalysis = _analysisResult!['fracture_analysis'] as Map<String, dynamic>?;
+    final totalFractures = fractureAnalysis?['total_fractures'] as int? ?? 0;
+    return totalFractures > 0;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    final isNewEntry = widget.isNewEntry;
-
     return PopScope(
       canPop: !_hasChanges,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (!didPop && _hasChanges) {
           final shouldPop = await _showDiscardDialog();
           if (shouldPop && mounted) {
@@ -93,7 +136,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            isNewEntry ? 'Nuevo Registro / Avance' : 'Crear Primer Historial',
+            _isEditing ? 'Editar Historial' : 'Crear Historial Clínico',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w600,
@@ -107,99 +150,8 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
           child: Column(
             children: [
               _buildPatientInfo(),
-
-              if (isNewEntry && widget.previousHistory != null)
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.history, color: Colors.blue[700]),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Registro Anterior:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue[600],
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  dateFormat.format(
-                                    widget.previousHistory!.createdAt,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.blue[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Diagnóstico previo:',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.previousHistory!.diagnostico,
-                              style: const TextStyle(fontSize: 12),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (widget.previousHistory!.avance != null &&
-                                widget.previousHistory!.avance!.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                'Último avance:',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                widget.previousHistory!.avance!,
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              
+              if (_hasImages) _buildImagesSection(),
 
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -235,35 +187,6 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                         const SizedBox(height: 20),
                       ],
 
-                      if (isNewEntry)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.green[50],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.green[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.green[700],
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Puedes actualizar el diagnóstico y tratamiento, y agregar notas sobre el progreso del paciente',
-                                  style: TextStyle(
-                                    color: Colors.green[700],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
                       _buildSectionHeader(
                         'Diagnóstico',
                         Icons.medical_information,
@@ -274,9 +197,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                         controller: _diagnosticoController,
                         maxLines: 4,
                         decoration: _buildInputDecoration(
-                          isNewEntry
-                              ? 'Actualizar o mantener el diagnóstico...'
-                              : 'Ingrese el diagnóstico del paciente...',
+                          'Ingrese el diagnóstico del paciente...',
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -301,9 +222,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                         controller: _tratamientoController,
                         maxLines: 4,
                         decoration: _buildInputDecoration(
-                          isNewEntry
-                              ? 'Actualizar o mantener el tratamiento...'
-                              : 'Ingrese el tratamiento recomendado...',
+                          'Ingrese el tratamiento recomendado...',
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -348,26 +267,22 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Expanded(
+                                const Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isNewEntry
-                                            ? '¿Qué avances observaste hoy?'
-                                            : 'Notas / Observaciones (Opcional)',
-                                        style: const TextStyle(
+                                        'Notas / Observaciones',
+                                        style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.green,
                                         ),
                                       ),
                                       Text(
-                                        isNewEntry
-                                            ? 'Registra la evolución del paciente en esta consulta'
-                                            : 'Observaciones iniciales del caso',
-                                        style: const TextStyle(
+                                        'Observaciones adicionales del caso',
+                                        style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.green,
                                         ),
@@ -383,7 +298,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                               maxLines: 5,
                               decoration:
                                   _buildInputDecoration(
-                                    'Ejemplo:\n• Mejoría en los síntomas\n• Reducción del dolor\n• Buena respuesta al tratamiento\n• Próxima cita en...',
+                                    'Ejemplo:\n• Mejoría en los síntomas\n• Reducción del dolor\n• Buena respuesta al tratamiento',
                                   ).copyWith(
                                     fillColor: Colors.white,
                                     hintStyle: TextStyle(
@@ -391,39 +306,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                                       fontSize: 13,
                                     ),
                                   ),
-                              validator: isNewEntry
-                                  ? (value) {
-                                      if (value == null ||
-                                          value.trim().isEmpty) {
-                                        return 'Por favor registra el avance de esta consulta';
-                                      }
-                                      return null;
-                                    }
-                                  : null,
                               enabled: !_isLoading,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: Colors.green[700],
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    isNewEntry
-                                        ? 'Se creará un nuevo registro con la fecha y hora actual'
-                                        : 'Se guardará como el primer registro del historial',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.green[700],
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),
@@ -473,8 +356,8 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
                               label: Text(
                                 _isLoading
                                     ? 'Guardando...'
-                                    : isNewEntry
-                                    ? 'Guardar Nuevo Registro'
+                                    : _isEditing
+                                    ? 'Actualizar Historial'
                                     : 'Crear Historial',
                                 style: const TextStyle(
                                   fontSize: 15,
@@ -544,8 +427,8 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.isNewEntry
-                      ? 'Nueva consulta de:'
+                  _isEditing
+                      ? 'Editando historial de:'
                       : 'Creando historial para:',
                   style: const TextStyle(fontSize: 11, color: Colors.white70),
                 ),
@@ -567,6 +450,150 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildImagesSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                ' Imágenes Radiológicas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
+                ),
+              ),
+              if (!_isEditing)
+                TextButton.icon(
+                  onPressed: _handleChangeImages,
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Cambiar'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.orange,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          const Text(
+            'Imagen Original:',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _originalImageBytes!,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.contain,
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          const Text(
+            'Imagen Analizada (con marcas):',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _annotatedImageBytes!,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.contain,
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _hasFractures ? Colors.red[50] : Colors.green[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _hasFractures ? Icons.warning : Icons.check_circle,
+                  color: _hasFractures ? Colors.red : Colors.green,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _annotationsText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _hasFractures ? Colors.red[900] : Colors.green[900],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleChangeImages() async {
+    final shouldChange = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Cambiar imágenes?'),
+        content: const Text(
+          '¿Estás seguro de que quieres volver a analizar una nueva radiografía? '
+          'Los datos actuales se perderán.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('Sí, cambiar'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldChange == true && mounted) {
+      // Regresar a XRayScreen y esperar resultado
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const XRayScreen(),
+        ),
+      );
+
+      if (result != null && mounted) {
+        setState(() {
+          _originalImageBytes = result['originalImage'] as Uint8List?;
+          _annotatedImageBytes = result['annotatedImage'] as Uint8List?;
+          _analysisResult = result['analysisResult'] as Map<String, dynamic>?;
+          _hasChanges = true;
+        });
+      }
+    }
   }
 
   Widget _buildSectionHeader(String title, IconData icon, Color color) {
@@ -671,15 +698,28 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
             : null,
       );
 
-      await _medicalHistoryService.createMedicalHistory(request);
+      MedicalHistory savedHistory;
+      
+      if (_isEditing) {
+        savedHistory = await _medicalHistoryService.updateMedicalHistory(
+          widget.existingHistory!.id,
+          request,
+        );
+      } else {
+        savedHistory = await _medicalHistoryService.createMedicalHistory(request);
+        
+        if (_hasImages) {
+          await _uploadAndLinkImages(savedHistory.id);
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.isNewEntry
-                  ? '  Nuevo registro agregado al historial'
-                  : '  Historial clínico creado exitosamente',
+              _isEditing
+                  ? ' Historial actualizado exitosamente'
+                  : ' Historial clínico creado exitosamente',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
@@ -703,6 +743,35 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _uploadAndLinkImages(String clinicHistoryId) async {
+    try {
+      print('Subiendo imágenes a MongoDB...');
+      
+      final uploadResult = await GraphQLService.uploadRadImage(
+        fileName: 'xray_${widget.patient.ci}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        imageBytes: _originalImageBytes!,
+        maskBytes: _annotatedImageBytes!,
+        mimetype: 'image/jpeg',
+        area: _area,
+        annotations: _annotationsText,
+      );
+      
+      if (uploadResult['success'] == true) {
+        final imageId = uploadResult['radImage']['id'] as String;
+        print(' Imagen subida con ID: $imageId');
+        
+        await GraphQLService.linkImageToClinicHistory(
+          imageId: imageId,
+          clinicHistoryId: clinicHistoryId,
+        );
+        
+        print(' Imagen vinculada al historial: $clinicHistoryId');
+      }
+    } catch (e) {
+      print(' Error subiendo imágenes: $e');
     }
   }
 }

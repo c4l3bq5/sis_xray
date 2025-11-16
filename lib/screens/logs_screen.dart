@@ -355,38 +355,117 @@ class _LogsScreenState extends State<LogsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Encabezado con información
+          Card(
+            elevation: 0,
+            color: Colors.blue.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Estadísticas del sistema de auditoría',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Tarjetas de estadísticas generales
+          const Text(
+            'Resumen General',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueAccent,
+            ),
+          ),
+          const SizedBox(height: 12),
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.8,
+            childAspectRatio: 1.6,
             children: [
               _buildStatCard(
                 'Total de Logs',
                 _stats!.totalLogs.toString(),
+                'Logs registrados en el sistema',
                 Icons.description,
                 Colors.blue,
               ),
               _buildStatCard(
+                'Usuarios Activos',
+                _stats!.usuariosActivos.toString(),
+                'Usuarios con actividad',
+                Icons.people,
+                Colors.purple,
+              ),
+              _buildStatCard(
                 'Hoy',
                 _stats!.hoy.toString(),
+                'Acciones registradas hoy',
                 Icons.today,
                 Colors.green,
               ),
               _buildStatCard(
                 'Esta Semana',
                 _stats!.estaSemana.toString(),
+                'Acciones esta semana',
                 Icons.calendar_today,
                 Colors.orange,
               ),
-              _buildStatCard(
-                'Este Mes',
-                _stats!.esteMes.toString(),
-                Icons.calendar_month,
-                Colors.purple,
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Estadísticas por tipo de acción
+          const Text(
+            'Por Tipo de Acción',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueAccent,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.3,
+            children: [
+              _buildCompactStatCard(
+                'Inserciones',
+                _stats!.inserciones.toString(),
+                Icons.add_circle,
+                Colors.teal,
+              ),
+              _buildCompactStatCard(
+                'Actualizaciones',
+                _stats!.actualizaciones.toString(),
+                Icons.edit,
+                Colors.orange,
+              ),
+              _buildCompactStatCard(
+                'Eliminaciones',
+                _stats!.eliminaciones.toString(),
+                Icons.delete,
+                Colors.red,
               ),
             ],
           ),
@@ -402,47 +481,70 @@ class _LogsScreenState extends State<LogsScreen>
                 color: Colors.blueAccent,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Muestra las operaciones más realizadas en el sistema',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+              ),
+            ),
             const SizedBox(height: 12),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: _stats!.porAccion.entries.map((entry) {
+                    final percentage = (_stats!.totalLogs > 0
+                        ? (entry.value / _stats!.totalLogs * 100)
+                        : 0.0);
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              entry.key,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  entry.key,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
-                            ),
+                              Text(
+                                '${percentage.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 45,
+                                child: Text(
+                                  entry.value.toString(),
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: LinearProgressIndicator(
-                              value: entry.value / _stats!.totalLogs,
-                              backgroundColor: Colors.grey[300],
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.blueAccent,
-                              ),
+                          const SizedBox(height: 6),
+                          LinearProgressIndicator(
+                            value: entry.value / _stats!.totalLogs,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.blueAccent,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          SizedBox(
-                            width: 40,
-                            child: Text(
-                              entry.value.toString(),
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent,
-                              ),
-                            ),
+                            minHeight: 6,
                           ),
                         ],
                       ),
@@ -464,6 +566,14 @@ class _LogsScreenState extends State<LogsScreen>
                 color: Colors.blueAccent,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Top 10 usuarios con mayor actividad en el sistema',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+              ),
+            ),
             const SizedBox(height: 12),
             Card(
               child: Padding(
@@ -475,12 +585,12 @@ class _LogsScreenState extends State<LogsScreen>
                       child: Row(
                         children: [
                           CircleAvatar(
-                            radius: 16,
+                            radius: 18,
                             backgroundColor: Colors.blue[100],
                             child: Text(
                               entry.key.substring(0, 1).toUpperCase(),
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue[700],
                               ),
@@ -499,7 +609,7 @@ class _LogsScreenState extends State<LogsScreen>
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 4,
+                              vertical: 6,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.blueAccent.withOpacity(0.1),
@@ -530,18 +640,72 @@ class _LogsScreenState extends State<LogsScreen>
   Widget _buildStatCard(
     String title,
     String value,
+    String description,
     IconData icon,
     Color color,
   ) {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 28, color: color),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 24, color: color),
             const SizedBox(height: 6),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -554,16 +718,16 @@ class _LogsScreenState extends State<LogsScreen>
                 ),
               ),
             ),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

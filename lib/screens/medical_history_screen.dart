@@ -1,10 +1,12 @@
 // lib/screens/medical_history_screen.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/patient_models.dart';
 import '../models/medical_history_models.dart';
 import '../services/medical_history_service.dart';
 import 'medical_history_form_screen.dart';
 import 'patient_history_detail_screen.dart';
+import 'xray_screen.dart';
 
 class MedicalHistoryScreen extends StatefulWidget {
   const MedicalHistoryScreen({super.key});
@@ -35,14 +37,9 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     });
 
     try {
-      // Cargar todos los pacientes
       final patients = await _medicalHistoryService.getAllPatients();
+      final allHistories = await _medicalHistoryService.getAllMedicalHistories();
 
-      // Cargar todos los historiales
-      final allHistories = await _medicalHistoryService
-          .getAllMedicalHistories();
-
-      // Organizar historiales por paciente
       final Map<int, List<MedicalHistory>> historiesMap = {};
       for (var history in allHistories) {
         if (!historiesMap.containsKey(history.pacienteId)) {
@@ -51,7 +48,6 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         historiesMap[history.pacienteId]!.add(history);
       }
 
-      // Ordenar historiales por fecha (más reciente primero)
       historiesMap.forEach((key, histories) {
         histories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       });
@@ -64,7 +60,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         });
       }
 
-      print('  Total pacientes activos: ${_allPatients.length}');
+      print('👥 Total pacientes activos: ${_allPatients.length}');
       print('📋 Pacientes con historial: ${historiesMap.length}');
     } catch (e) {
       if (mounted) {
@@ -129,9 +125,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
   }
 
   Widget _buildHeader() {
-    final patientsWithHistory = _allPatients
-        .where((p) => _hasHistory(p.id))
-        .length;
+    final patientsWithHistory = _allPatients.where((p) => _hasHistory(p.id)).length;
     final patientsWithoutHistory = _allPatients.length - patientsWithHistory;
 
     return Container(
@@ -160,7 +154,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
             'Administra los historiales clínicos de todos los pacientes',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 12),
@@ -199,16 +193,11 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     );
   }
 
-  Widget _buildStatCard(
-    IconData icon,
-    String label,
-    String value,
-    Color color,
-  ) {
+  Widget _buildStatCard(IconData icon, String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -367,9 +356,10 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     );
   }
 
+  // 🚀 FLUJO A: Seleccionar Paciente → XRay → Form
   void _handlePatientTap(Paciente patient, bool hasHistory) async {
     if (hasHistory) {
-      // Navegar a ver el historial completo
+      // Ver historial completo
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -384,20 +374,40 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         _loadAllData();
       }
     } else {
-      // Navegar al formulario para crear
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MedicalHistoryFormScreen(
-            patient: patient,
-            isNewEntry: false, // Primer historial
-          ),
-        ),
-      );
+      // FLUJO NUEVO: XRay → Form
+      await _createNewHistoryWithXRay(patient);
+    }
+  }
 
-      if (result == true) {
-        _loadAllData();
-      }
+  Future<void> _createNewHistoryWithXRay(Paciente patient) async {
+    // 1. Ir a XRayScreen y esperar resultado
+    final xrayResult = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const XRayScreen(),
+      ),
+    );
+
+    if (xrayResult == null) {
+      // Usuario canceló
+      return;
+    }
+
+    // 2. Ir al formulario con las imágenes
+    final formResult = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MedicalHistoryFormScreen(
+          patient: patient,
+          originalImageBytes: xrayResult['originalImage'] as Uint8List?,
+          annotatedImageBytes: xrayResult['annotatedImage'] as Uint8List?,
+          analysisResult: xrayResult['analysisResult'] as Map<String, dynamic>?,
+        ),
+      ),
+    );
+
+    if (formResult == true) {
+      _loadAllData();
     }
   }
 }
@@ -428,7 +438,6 @@ class _PatientCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Avatar
               Container(
                 width: 60,
                 height: 60,
@@ -452,8 +461,6 @@ class _PatientCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-
-              // Información del paciente
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,20 +481,14 @@ class _PatientCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           'CI: ${patient.ci}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
+                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                         ),
                         const SizedBox(width: 12),
                         Icon(Icons.cake, size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           '${patient.edad} años',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
+                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                         ),
                       ],
                     ),
@@ -498,14 +499,10 @@ class _PatientCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: hasHistory
-                            ? Colors.green[50]
-                            : Colors.orange[50],
+                        color: hasHistory ? Colors.green[50] : Colors.orange[50],
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: hasHistory
-                              ? Colors.green[200]!
-                              : Colors.orange[200]!,
+                          color: hasHistory ? Colors.green[200]! : Colors.orange[200]!,
                         ),
                       ),
                       child: Row(
@@ -514,9 +511,7 @@ class _PatientCard extends StatelessWidget {
                           Icon(
                             hasHistory ? Icons.check_circle : Icons.add_circle,
                             size: 12,
-                            color: hasHistory
-                                ? Colors.green[700]
-                                : Colors.orange[700],
+                            color: hasHistory ? Colors.green[700] : Colors.orange[700],
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -525,9 +520,7 @@ class _PatientCard extends StatelessWidget {
                                 : 'Sin historial',
                             style: TextStyle(
                               fontSize: 11,
-                              color: hasHistory
-                                  ? Colors.green[700]
-                                  : Colors.orange[700],
+                              color: hasHistory ? Colors.green[700] : Colors.orange[700],
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -537,8 +530,6 @@ class _PatientCard extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // Icono de acción
               Icon(
                 hasHistory ? Icons.visibility : Icons.add,
                 color: hasHistory ? Colors.green[600] : Colors.orange[600],
