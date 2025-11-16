@@ -1,16 +1,21 @@
-# xray_sis_project
+# SISTEMA DE APOYO PARA LA DETECCIÓN DE LESIONES TRAUMATOLÓGICAS EN EXTREMIDADES SUPERIORES E INFERIORES UTILIZANDO SEGNET Y DATA AUGMENTATION
 
-A new Flutter project.
+Proyecto de grado | 8vo semestre - Universidad Privada del Valle / La Paz, Bolivia
 
-## Getting Started
+## Aclarar
 
-This project is a starting point for a Flutter application.
+Este proyecto no pretende reemplazar la opinión médica, si no ser un apoyo, o un estudio complementario dentro de los diagnósticos
 
-A few resources to get you started if this is your first Flutter project:
+Utiliza una arquitectura de microservicios para la comunicación con el BackEnd, la distribución y guardado de imágenes, recuperación de contraseña con Whatsapp utilizando twilio, MFA, y tunelización para utilizar los recursos gráficos que puede ofrecer google colab y su entorno virtual gratuito:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- ExpressJS - REST / NeonDB
+- GraphQL - Imágenes / MongoDB
+- MFA - ExpressJS
+- WhatsappRecoveryPassword - ExpressJS
+- Machine Learning - Google Colab and Cloudflare tunnel
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+El proyecto es escalable pero no se menciona que arquitecturas pueden mejorar, dudas y consultas escriban al siguiente mail th3alb0@protonmail.com ;D
+
+Atte
+
+c4l3b534
