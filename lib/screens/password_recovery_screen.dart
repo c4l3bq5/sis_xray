@@ -1,4 +1,3 @@
-// lib/screens/password_recovery_screen.dart
 import 'package:flutter/material.dart';
 import '../services/password_recovery_service.dart';
 import '../services/user_service.dart';
@@ -39,8 +38,7 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
     try {
       final identifier = _usernameController.text.trim();
       
-      // PASO 1: Buscar usuario por CI o username en la API REST
-      print('🔍 Buscando usuario por CI o username: $identifier');
+      print(' Buscando usuario por CI o username: $identifier');
       final userData = await _userService.getUserByIdentifier(identifier);
       
       if (userData['telefono'] == null || userData['telefono'].toString().isEmpty) {
@@ -51,17 +49,14 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
         _userData = userData;
       });
 
-      // PASO 2: Usar teléfono como identifier para el microservicio de recovery
-      // El microservicio envía el código de WhatsApp a este número
       final phoneNumber = userData['telefono'];
       
-      print('📞 Solicitando código de recuperación para: $identifier');
+      print(' Solicitando código de recuperación para: $identifier');
       final response = await _recoveryService.requestCode(identifier);
 
       if (!mounted) return;
 
       if (response.sent) {
-        // Mostrar mensaje de éxito
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -82,7 +77,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
           ),
         );
 
-        // Navegar a la pantalla de verificación
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -100,7 +94,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
     } catch (e) {
       String errorMsg = e.toString().replaceAll('Exception: ', '');
       
-      // Mensajes de error amigables
       if (errorMsg.contains('Usuario no encontrado') || errorMsg.contains('404')) {
         errorMsg = 'Usuario no encontrado. Verifica que el nombre de usuario sea correcto.';
       } else if (errorMsg.contains('timeout')) {
@@ -122,16 +115,13 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
   }
 
   String _maskIdentifier(String identifier) {
-    // Enmascarar CI o email para privacidad
     if (identifier.contains('@')) {
-      // Es un email
       final parts = identifier.split('@');
       if (parts[0].length > 3) {
         return '${parts[0].substring(0, 3)}***@${parts[1]}';
       }
       return identifier;
     } else {
-      // Es un CI
       if (identifier.length > 4) {
         return '${identifier.substring(0, 2)}***${identifier.substring(identifier.length - 2)}';
       }
@@ -161,7 +151,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
               children: [
                 const SizedBox(height: 20),
                 
-                // Ícono
                 Center(
                   child: Container(
                     width: 80,
@@ -180,7 +169,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 32),
                 
-                // Título
                 const Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
@@ -192,7 +180,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 12),
                 
-                // Descripción
                 Text(
                   'Ingresa tu nombre de usuario y te enviaremos un código de verificación por WhatsApp.',
                   style: TextStyle(
@@ -204,7 +191,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 40),
                 
-                // Campo de username
                 TextFormField(
                   controller: _usernameController,
                   keyboardType: TextInputType.text,
@@ -239,7 +225,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // Mensaje de error
                 if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -267,7 +252,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 24),
                 
-                // Botón enviar código
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -304,7 +288,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 24),
                 
-                // Info adicional
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -347,7 +330,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                 
                 const SizedBox(height: 32),
                 
-                // Ayuda
                 Center(
                   child: TextButton.icon(
                     onPressed: _isLoading ? null : () {

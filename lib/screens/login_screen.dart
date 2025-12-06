@@ -112,7 +112,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Mensaje de error
                           if (_errorMessage.isNotEmpty) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
@@ -144,7 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 20),
                           ],
 
-                          // Campo de usuario
                           TextFormField(
                             controller: _usuarioController,
                             focusNode: _usuarioFocusNode,
@@ -187,7 +185,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Campo de contraseña
                           TextFormField(
                             controller: _contrasenaController,
                             focusNode: _contrasenaFocusNode,
@@ -243,7 +240,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 12),
 
-                          // Botón "¿Olvidaste tu contraseña?"
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -273,7 +269,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Botón de login
                           SizedBox(
                             width: double.infinity,
                             height: 54,
@@ -313,7 +308,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 20),
 
-                          // Ayuda
                           Text(
                             '¿Necesitas ayuda? Contacta al administrador',
                             style: TextStyle(
@@ -352,15 +346,14 @@ class _LoginScreenState extends State<LoginScreen> {
         contrasena: _contrasenaController.text,
       );
 
-      print('🔐 Intentando login...');
+      print(' Intentando login...');
       final response = await _authService.login(loginRequest);
 
       if (response.success && response.data != null) {
         final data = response.data!;
 
-        // 🔥 FLUJO 1: Verificar si requiere cambio de contraseña temporal
         if (data.requiresPasswordChange == true) {
-          print('⚠️ Usuario tiene contraseña temporal, redirigiendo...');
+          print(' Usuario tiene contraseña temporal, redirigiendo...');
           if (!mounted) return;
           Navigator.pushReplacement(
             context,
@@ -375,9 +368,8 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
 
-        // 🔥 FLUJO 2: Verificar si requiere MFA
         if (data.requiresMFA == true) {
-          print('🔒 Usuario requiere MFA, redirigiendo...');
+          print(' Usuario requiere MFA, redirigiendo...');
           if (!mounted) return;
           Navigator.pushReplacement(
             context,
@@ -392,23 +384,19 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
 
-        // 🔥 FLUJO 3: Login exitoso sin MFA temporal
-        print('✅ Login exitoso, guardando sesión...');
+        print(' Login exitoso, guardando sesión...');
         await _authService.saveSession(response);
 
-        // 🔥 NUEVO: Verificar si el usuario tiene MFA configurado
-        print('🔍 Verificando estado de MFA...');
+        print(' Verificando estado de MFA...');
         final hasMFAEnabled = await _mfaService.checkMFAStatus(data.user.id);
 
-        print('📊 MFA Status: $hasMFAEnabled');
+        print(' MFA Status: $hasMFAEnabled');
 
         if (!mounted) return;
 
-        // 🔥 Si NO tiene MFA configurado, mostrar prompt
         if (!hasMFAEnabled) {
-          print('💡 Usuario sin MFA, mostrando prompt de configuración...');
+          print(' Usuario sin MFA, mostrando prompt de configuración...');
           
-          // Obtener datos completos del usuario
           final userData = await _authService.getUserData(forceRefresh: true);
           
           Navigator.pushReplacement(
@@ -423,8 +411,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else {
-          // Usuario ya tiene MFA configurado, ir directo al home
-          print('🏠 Usuario con MFA, navegando al home...');
+          print(' Usuario con MFA, navegando al home...');
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         }
       } else {
@@ -434,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error en login: $e');
+      print(' Error en login: $e');
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;

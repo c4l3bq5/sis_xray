@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import '../models/auth_models.dart';
 
 class MFAService {
-  // 🔥 URL CORREGIDA del microservicio MFA en Render
   static const String mfaBaseUrl = 'https://mfa-api-5155.onrender.com/api/mfa';
 
   Map<String, String> getHeaders() {
@@ -34,7 +33,6 @@ class MFAService {
     }
   }
 
-  /// Verifica el código MFA durante el login
   Future<MFAVerifyResponse> verifyLoginMFA(int userId, String mfaCode) async {
     try {
       final response = await http
@@ -52,7 +50,6 @@ class MFAService {
     }
   }
 
-  /// Verifica el estado MFA de un usuario
   Future<bool> checkMFAStatus(int userId) async {
     try {
       final response = await http
@@ -70,7 +67,6 @@ class MFAService {
     }
   }
 
-  /// Genera un nuevo secreto MFA y QR code para configuración
   Future<Map<String, dynamic>> generateMFASetup(
     int userId,
     String username,
@@ -91,7 +87,6 @@ class MFAService {
     }
   }
 
-  /// Activa MFA verificando el código del usuario
   Future<bool> activateMFA(int userId, String mfaCode, String secret) async {
     try {
       final response = await http
@@ -113,7 +108,6 @@ class MFAService {
     }
   }
 
-  /// Desactiva MFA para un usuario
   Future<bool> disableMFA(int userId) async {
     try {
       final response = await http

@@ -1,4 +1,3 @@
-// lib/screens/users_screen.dart
 import 'package:flutter/material.dart';
 import '../models/user_models.dart';
 import '../services/user_service.dart';
@@ -17,8 +16,8 @@ class _UsersScreenState extends State<UsersScreen> {
   List<Usuario> _usuariosActivos = [];
   List<Usuario> _usuariosInactivos = [];
   bool _isLoading = true;
-  bool _mostrarActivos = true; // Solo mostrar activos por defecto
-  bool _mostrarInactivos = false; // No mostrar inactivos por defecto
+  bool _mostrarActivos = true;
+  bool _mostrarInactivos = false; 
   String _errorMessage = '';
 
   @override

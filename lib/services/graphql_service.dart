@@ -6,19 +6,26 @@ import 'package:http/http.dart' as http;
 class GraphQLService {
   static const String baseUrl = 'https://api-graph.onrender.com/graphql';
   
-  // Subir imagen a RadImages (MongoDB)
   static Future<Map<String, dynamic>> uploadRadImage({
     required String fileName,
     required Uint8List imageBytes,
     required Uint8List maskBytes,
     required String mimetype,
-    required String area, // 'upper' o 'lower'
+    required String area,
     String? annotations,
+    String? clinicHistoryId,
   }) async {
     try {
-      // Convertir a Base64
+      print(' Preparando upload a MongoDB...');
+      print('   - Filename: $fileName');
+      print('   - Area: $area');
+      print('   - Clinic History ID: $clinicHistoryId');
+      
       final imageBase64 = base64Encode(imageBytes);
       final maskBase64 = base64Encode(maskBytes);
+      
+      print('   - Image size: ${imageBytes.length} bytes');
+      print('   - Mask size: ${maskBytes.length} bytes');
       
       final mutation = '''
         mutation UploadRadImage(
@@ -28,6 +35,7 @@ class GraphQLService {
           \$mimetype: String!
           \$area: String!
           \$annotations: String
+          \$clinicHistoryId: String
         ) {
           uploadRadImage(
             fileName: \$fileName
@@ -36,6 +44,7 @@ class GraphQLService {
             mimetype: \$mimetype
             area: \$area
             annotations: \$annotations
+            clinicHistoryId: \$clinicHistoryId
           ) {
             success
             message
@@ -46,6 +55,7 @@ class GraphQLService {
               mask
               clinicHistoryId
               uploadDate
+              area
             }
           }
         }
@@ -58,7 +68,10 @@ class GraphQLService {
         'mimetype': mimetype,
         'area': area,
         'annotations': annotations,
+        'clinicHistoryId': clinicHistoryId,
       };
+      
+      print(' Enviando request a GraphQL...');
       
       final response = await http.post(
         Uri.parse(baseUrl),
@@ -67,29 +80,40 @@ class GraphQLService {
           'query': mutation,
           'variables': variables,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
+      
+      print(' Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
+        
         if (result['errors'] != null) {
+          print(' GraphQL errors: ${result['errors']}');
           throw Exception(result['errors'][0]['message']);
         }
-        return result['data']['uploadRadImage'];
+        
+        final uploadData = result['data']['uploadRadImage'] as Map<String, dynamic>;
+        print(' Upload exitoso: ${uploadData['message']}');
+        
+        return uploadData;
       } else {
+        print(' HTTP error: ${response.statusCode}');
+        print(' Response body: ${response.body}');
         throw Exception('Error al subir imagen: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error en uploadRadImage: $e');
+      print(' Error en uploadRadImage: $e');
       rethrow;
     }
   }
   
-  // Vincular imagen con historial clínico
   static Future<Map<String, dynamic>> linkImageToClinicHistory({
     required String imageId,
     required String clinicHistoryId,
   }) async {
     try {
+      print(' Vinculando imagen $imageId a historial $clinicHistoryId');
+      
       final mutation = '''
         mutation LinkImageToClinicHistory(
           \$imageId: ID!
@@ -125,21 +149,24 @@ class GraphQLService {
         if (result['errors'] != null) {
           throw Exception(result['errors'][0]['message']);
         }
+        
+        print(' Imagen vinculada exitosamente');
         return result['data']['linkImageToClinicHistory'];
       } else {
         throw Exception('Error al vincular imagen: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error en linkImageToClinicHistory: $e');
+      print(' Error en linkImageToClinicHistory: $e');
       rethrow;
     }
   }
   
-  // Obtener imágenes por clinic_history_id
   static Future<List<Map<String, dynamic>>> getImagesByClinicHistory(
     String clinicHistoryId,
   ) async {
     try {
+      print(' Buscando imágenes para historial: $clinicHistoryId');
+      
       final query = '''
         query GetImagesByClinicHistory(\$clinicHistoryId: String!) {
           radImagesByClinicHistory(clinicHistoryId: \$clinicHistoryId) {
@@ -151,6 +178,7 @@ class GraphQLService {
             clinicHistoryId
             annotations
             uploadDate
+            area
           }
         }
       ''';
@@ -173,22 +201,23 @@ class GraphQLService {
         }
         
         final images = result['data']['radImagesByClinicHistory'] as List;
+        print(' Imágenes encontradas: ${images.length}');
+        
         return images.cast<Map<String, dynamic>>();
       } else {
         throw Exception('Error al obtener imágenes: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error en getImagesByClinicHistory: $e');
+      print(' Error en getImagesByClinicHistory: $e');
       rethrow;
     }
   }
   
-  // NUEVO: Obtener las imágenes más recientes (todas)
   static Future<List<Map<String, dynamic>>> getRecentRadImages({
     int limit = 10,
   }) async {
     try {
-      print('🔍 Obteniendo imágenes recientes (limit: $limit)...');
+      print(' Obteniendo imágenes recientes (limit: $limit)...');
       
       final query = '''
         query GetRecentRadImages(\$limit: Int) {
@@ -220,35 +249,33 @@ class GraphQLService {
         final result = json.decode(response.body);
         
         if (result['errors'] != null) {
-          print('⚠️ GraphQL errors: ${result['errors']}');
+          print(' GraphQL errors: ${result['errors']}');
           throw Exception(result['errors'][0]['message']);
         }
         
         if (result['data'] == null || result['data']['recentRadImages'] == null) {
-          print('⚠️ No se encontró el campo recentRadImages en la respuesta');
+          print(' No se encontró el campo recentRadImages en la respuesta');
           return [];
         }
         
         final images = result['data']['recentRadImages'] as List;
-        print('✅ Imágenes obtenidas: ${images.length}');
+        print('Imágenes obtenidas: ${images.length}');
         
         return images.cast<Map<String, dynamic>>();
       } else {
-        print('❌ Error HTTP: ${response.statusCode}');
-        print('❌ Body: ${response.body}');
+        print(' Error HTTP: ${response.statusCode}');
+        print(' Body: ${response.body}');
         throw Exception('Error al obtener imágenes recientes: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error en getRecentRadImages: $e');
+      print(' Error en getRecentRadImages: $e');
       rethrow;
     }
   }
   
-  // ALTERNATIVA: Si el backend no tiene el query recentRadImages,
-  // puedes usar este método que obtiene todas las imágenes sin filtro
   static Future<List<Map<String, dynamic>>> getAllRadImages() async {
     try {
-      print('🔍 Obteniendo todas las imágenes...');
+      print(' Obteniendo todas las imágenes...');
       
       final query = '''
         query GetAllRadImages {
@@ -287,13 +314,13 @@ class GraphQLService {
           return dateB.compareTo(dateA);
         });
         
-        print('✅ Total imágenes: ${images.length}');
+        print(' Total imágenes: ${images.length}');
         return images.cast<Map<String, dynamic>>();
       } else {
         throw Exception('Error al obtener todas las imágenes: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error en getAllRadImages: $e');
+      print(' Error en getAllRadImages: $e');
       rethrow;
     }
   }

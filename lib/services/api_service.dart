@@ -6,19 +6,10 @@ import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String _baseUrl =
-      'https://full-tries-sweet-african.trycloudflare.com';
+      'https://savings-nearly-wise-largest.trycloudflare.com';
 
-  /// Analiza una imagen de radiografía
-  ///
   /// [imageBytes] - Bytes de la imagen en formato JPG/PNG
-  ///
-  /// Retorna JSON con:
-  /// - status: 'success' | 'rejected' | 'error'
-  /// - region_analysis: clasificación upper/lower/other
-  /// - segmentation: huesos detectados
-  /// - fracture_analysis: fracturas encontradas
-  /// - annotated_image_base64: imagen con marcas (si hay fracturas)
-  /// - clinical_recommendation: recomendación médica
+
   static Future<Map<String, dynamic>> analyzeImage(Uint8List imageBytes) async {
     final uri = Uri.parse('$_baseUrl/analyze');
 
@@ -26,12 +17,10 @@ class ApiService {
       print(' Enviando imagen a: $_baseUrl/analyze');
       print(' Tamaño: ${(imageBytes.length / 1024).toStringAsFixed(1)} KB');
 
-      // Crear request multipart
       final request = http.MultipartRequest('POST', uri);
 
-      // Agregar imagen con tipo MIME correcto
       final multipartFile = http.MultipartFile.fromBytes(
-        'image', // ← Nombre del campo (debe coincidir con la API)
+        'image',
         imageBytes,
         filename: 'xray_analysis.jpg',
         contentType: MediaType('image', 'jpeg'),
@@ -39,7 +28,6 @@ class ApiService {
 
       request.files.add(multipartFile);
 
-      // Headers adicionales
       request.headers.addAll({
         'Accept': 'application/json',
         'Content-Type': 'multipart/form-data',
@@ -49,7 +37,6 @@ class ApiService {
       print('   Campo: image');
       print('   Tipo: image/jpeg');
 
-      // Enviar con timeout (análisis puede tomar 30-90s)
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 120),
         onTimeout: () {
@@ -57,19 +44,16 @@ class ApiService {
         },
       );
 
-      // Convertir a Response
       final response = await http.Response.fromStream(streamedResponse);
 
       print(' Respuesta recibida: ${response.statusCode}');
 
-      // Manejar respuestas
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
 
         print(' Análisis exitoso');
         print(' Status: ${jsonResponse['status']}');
 
-        // Verificar si hay imagen anotada
         if (jsonResponse.containsKey('annotated_image_base64')) {
           final base64Length =
               (jsonResponse['annotated_image_base64'] as String).length;

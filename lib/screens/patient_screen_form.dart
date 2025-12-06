@@ -1,11 +1,54 @@
 // lib/screens/patient_form_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/patient_models.dart';
 import '../services/patient_service.dart';
 
+// 🔥 Custom formatter para limitar longitud estrictamente
+class StrictLengthFormatter extends TextInputFormatter {
+  final int maxLength;
+
+  StrictLengthFormatter(this.maxLength);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.length > maxLength) {
+      return oldValue;
+    }
+    return newValue;
+  }
+}
+
+// 🔥 Custom formatter para solo dígitos con longitud estricta
+class DigitsOnlyFormatter extends TextInputFormatter {
+  final int maxLength;
+
+  DigitsOnlyFormatter(this.maxLength);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (digitsOnly.length > maxLength) {
+      return oldValue;
+    }
+    
+    return TextEditingValue(
+      text: digitsOnly,
+      selection: TextSelection.collapsed(offset: digitsOnly.length),
+    );
+  }
+}
+
 class PatientFormScreen extends StatefulWidget {
-  final Paciente? paciente; // Si es null, estamos creando uno nuevo
+  final Paciente? paciente;
 
   const PatientFormScreen({super.key, this.paciente});
 
@@ -17,7 +60,6 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final PatientService _patientService = PatientService();
 
-  // Controladores para datos de persona
   late TextEditingController _ciController;
   late TextEditingController _nombreController;
   late TextEditingController _aPaternoController;
@@ -25,8 +67,6 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
   late TextEditingController _telefonoController;
   late TextEditingController _mailController;
   late TextEditingController _domicilioController;
-
-  // Controladores para datos de paciente
   late TextEditingController _alergiasController;
   late TextEditingController _antecedentesController;
   late TextEditingController _estaturaController;
@@ -76,7 +116,6 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
 
       _selectedDate = DateTime.parse(p.fechNac);
 
-      // Convertir género de 'M'/'F' a 'Masculino'/'Femenino'
       if (p.genero != null) {
         if (p.genero!.toLowerCase() == 'm' ||
             p.genero!.toLowerCase() == 'masculino') {
@@ -123,11 +162,16 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
   }
 
   Future<void> _selectDate() async {
+    // 🔥 Calcular fechas límite (mínimo 6 meses de nacido)
+    final now = DateTime.now();
+    final minDate = DateTime(1900, 1, 1); // Fecha mínima histórica
+    final maxDate = DateTime(now.year, now.month - 6, now.day); // 6 meses atrás
+    
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime(2000),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      initialDate: _selectedDate ?? maxDate, // 🔥 Mostrar fecha máxima por defecto
+      firstDate: minDate,
+      lastDate: maxDate,
       locale: const Locale('es', 'ES'),
     );
 
@@ -135,6 +179,18 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
       setState(() {
         _selectedDate = picked;
       });
+    }
+  }
+
+  // 🔥 Validar CI único
+  Future<bool> _validarCIUnico(String ci) async {
+    try {
+      final response = await _patientService.getPacientes(includeInactive: true);
+      return !response.pacientes.any(
+        (p) => p.ci == ci && (widget.paciente != null ? p.id != widget.paciente!.id : true),
+      );
+    } catch (e) {
+      return true;
     }
   }
 
@@ -168,6 +224,19 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
           backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    // 🔥 Validar CI único
+    if (!await _validarCIUnico(_ciController.text.trim())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El CI ya está registrado'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -207,8 +276,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
         provincia: _provinciaController.text.trim().isEmpty
             ? null
             : _provinciaController.text.trim(),
-        activo:
-            widget.paciente?.activo ?? 'activo', // Mantener el estado actual
+        activo: widget.paciente?.activo ?? 'activo',
       );
 
       if (widget.paciente == null) {
@@ -216,7 +284,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Paciente creado exitosamente'),
+              content: Text('  Paciente creado exitosamente'),
               backgroundColor: Colors.green,
             ),
           );
@@ -230,7 +298,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Paciente actualizado exitosamente'),
+              content: Text('  Paciente actualizado exitosamente'),
               backgroundColor: Colors.green,
             ),
           );
@@ -273,34 +341,50 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // DATOS PERSONALES
             _buildSectionTitle('Datos Personales', Icons.person),
             const SizedBox(height: 16),
 
+            // 🔥 CI - Solo números, exactamente 7 dígitos
             TextFormField(
               controller: _ciController,
               decoration: _inputDecoration(
-                'Carnet de Identidad *',
+                'Carnet de Identidad * (7 dígitos)',
                 Icons.badge,
               ),
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                DigitsOnlyFormatter(7), // 🔥 Custom formatter estricto
+              ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'El CI es obligatorio';
                 }
+                if (value.length != 7) {
+                  return 'El CI debe tener exactamente 7 dígitos';
+                }
                 return null;
               },
-              enabled: true, // Solo editable al crear
+              enabled: widget.paciente == null, // Solo editable al crear
             ),
             const SizedBox(height: 16),
 
+            // 🔥 NOMBRE - Solo letras
             TextFormField(
               controller: _nombreController,
               decoration: _inputDecoration('Nombre *', Icons.person_outline),
               textCapitalization: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(
+                  RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'), // 🔥 Solo letras (con tildes y ñ)
+                ),
+                StrictLengthFormatter(50),
+              ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'El nombre es obligatorio';
+                }
+                if (value.length < 2) {
+                  return 'Mínimo 2 caracteres';
                 }
                 return null;
               },
@@ -309,25 +393,42 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
 
             Row(
               children: [
+                // 🔥 APELLIDO PATERNO - Solo letras
                 Expanded(
                   child: TextFormField(
                     controller: _aPaternoController,
                     decoration: _inputDecoration('Apellido Paterno *', null),
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                      ),
+                      StrictLengthFormatter(50),
+                    ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Obligatorio';
+                      }
+                      if (value.length < 2) {
+                        return 'Mín. 2 caracteres';
                       }
                       return null;
                     },
                   ),
                 ),
                 const SizedBox(width: 12),
+                // 🔥 APELLIDO MATERNO - Solo letras
                 Expanded(
                   child: TextFormField(
                     controller: _aMaternoController,
                     decoration: _inputDecoration('Apellido Materno', null),
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                      ),
+                      StrictLengthFormatter(50),
+                    ],
                   ),
                 ),
               ],
@@ -367,17 +468,39 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
             ),
             const SizedBox(height: 16),
 
+            // 🔥 TELÉFONO - Solo números, exactamente 8 dígitos
             TextFormField(
               controller: _telefonoController,
-              decoration: _inputDecoration('Teléfono', Icons.phone),
+              decoration: _inputDecoration('Teléfono (8 dígitos)', Icons.phone),
               keyboardType: TextInputType.phone,
+              inputFormatters: [
+                DigitsOnlyFormatter(8), // 🔥 Custom formatter estricto
+              ],
+              validator: (value) {
+                if (value != null && value.isNotEmpty && value.length != 8) {
+                  return 'El teléfono debe tener exactamente 8 dígitos';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
 
+            // 🔥 EMAIL - Validación estricta
             TextFormField(
               controller: _mailController,
               decoration: _inputDecoration('Correo Electrónico', Icons.email),
               keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                if (value != null && value.isNotEmpty) {
+                  final emailRegex = RegExp(
+                    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                  );
+                  if (!emailRegex.hasMatch(value)) {
+                    return 'Ingresa un correo válido';
+                  }
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
 
@@ -385,10 +508,10 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
               controller: _domicilioController,
               decoration: _inputDecoration('Domicilio', Icons.home),
               maxLines: 2,
+              inputFormatters: [StrictLengthFormatter(200)],
             ),
             const SizedBox(height: 24),
 
-            // DATOS MÉDICOS
             _buildSectionTitle('Datos Médicos', Icons.medical_services),
             const SizedBox(height: 16),
 
@@ -417,9 +540,25 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
                   child: TextFormField(
                     controller: _estaturaController,
                     decoration: _inputDecoration('Estatura (m)', Icons.height),
-                    keyboardType: TextInputType.numberWithOptions(
+                    keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                      StrictLengthFormatter(5), // Ej: 1.75
+                    ],
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty) {
+                        final estatura = double.tryParse(value);
+                        if (estatura == null) {
+                          return 'Valor inválido';
+                        }
+                        if (estatura < 0.5 || estatura > 2.5) {
+                          return 'Rango: 0.5-2.5m';
+                        }
+                      }
+                      return null;
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -432,6 +571,12 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
                       Icons.location_city,
                     ),
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                      ),
+                      StrictLengthFormatter(50),
+                    ],
                   ),
                 ),
               ],
@@ -443,6 +588,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
               decoration: _inputDecoration('Alergias', Icons.warning_amber),
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
+              inputFormatters: [StrictLengthFormatter(500)],
             ),
             const SizedBox(height: 16),
 
@@ -454,6 +600,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
               ),
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
+              inputFormatters: [StrictLengthFormatter(500)],
             ),
             const SizedBox(height: 32),
 

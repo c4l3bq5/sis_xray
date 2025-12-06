@@ -1,4 +1,3 @@
-// lib/models/patient_models.dart
 class Paciente {
   final int? id;
   final int personaId;
@@ -9,7 +8,6 @@ class Paciente {
   final String? provincia;
   final String activo;
 
-  // Datos de la persona relacionada
   final String nombre;
   final String aPaterno;
   final String? aMaterno;
@@ -57,10 +55,8 @@ class Paciente {
         aPaterno: (json['a_paterno'] ?? '').toString(),
         aMaterno: json['a_materno']?.toString(),
         fechNac: (json['fech_nac'] ?? '').toString(),
-        // Convertir telefono a string (viene como int de la API)
         telefono: json['telefono'] != null ? json['telefono'].toString() : null,
         mail: json['mail']?.toString(),
-        // Convertir CI a string (viene como int de la API)
         ci: (json['ci'] ?? '').toString(),
         genero: json['genero']?.toString(),
         domicilio: json['domicilio']?.toString(),
@@ -73,7 +69,6 @@ class Paciente {
 
   Map<String, dynamic> toJson() {
     if (id == null) {
-      // Para CREAR nuevo paciente
       return {
         'persona': {
           'nombre': nombre,
@@ -95,9 +90,7 @@ class Paciente {
         },
       };
     } else {
-      // Para ACTUALIZAR paciente existente - enviar TODOS los datos
       return {
-        // Datos de persona
         'nombre': nombre,
         'a_paterno': aPaterno,
         'a_materno': aMaterno,
@@ -107,7 +100,6 @@ class Paciente {
         'ci': ci,
         'genero': genero,
         'domicilio': domicilio,
-        // Datos de paciente
         'grupo_sanguineo': grupoSanguineo,
         'alergias': alergias,
         'antecedentes': antecedentes,
@@ -197,7 +189,6 @@ class PacienteStats {
 
   factory PacienteStats.fromJson(Map<String, dynamic> json) {
     try {
-      // Convertir strings a int
       final total =
           int.tryParse(json['total_pacientes']?.toString() ?? '0') ?? 0;
       final activos = int.tryParse(json['activos']?.toString() ?? '0') ?? 0;

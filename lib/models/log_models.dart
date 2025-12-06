@@ -1,4 +1,3 @@
-// lib/models/log_models.dart
 import 'package:flutter/material.dart';
 
 class Log {
@@ -8,7 +7,6 @@ class Log {
   final String? descripcion;
   final DateTime timestamp;
 
-  // Datos del usuario si existe
   final String? usuario;
   final String? nombreUsuario;
 
@@ -23,7 +21,6 @@ class Log {
   });
 
   factory Log.fromJson(Map<String, dynamic> json) {
-    // Construir nombre completo si viene separado
     String? nombreCompleto;
     if (json['nombre'] != null) {
       nombreCompleto = json['nombre'].toString();
@@ -49,7 +46,6 @@ class Log {
   }
 
   String get accionFormateada {
-    // Extraer solo la acción principal
     if (accion.contains(' en ')) {
       return accion.split(' en ')[0];
     }
@@ -57,7 +53,6 @@ class Log {
   }
 
   String get tablaAfectada {
-    // Extraer la tabla afectada
     if (accion.contains(' en ')) {
       return accion.split(' en ')[1];
     }
@@ -124,7 +119,6 @@ class LogStats {
   final int actualizaciones;
   final int eliminaciones;
   
-  // Propiedades para las estadísticas detalladas
   final Map<String, int> porAccion;
   final Map<String, int> porUsuario;
 
@@ -170,10 +164,9 @@ class LogStats {
     );
   }
   
-  // Propiedades calculadas para mantener compatibilidad
   int get hoy => logsHoy;
-  int get estaSemana => totalLogs; // Placeholder
-  int get esteMes => totalLogs; // Placeholder
+  int get estaSemana => totalLogs; 
+  int get esteMes => totalLogs; 
   int get inserts => inserciones;
   int get updates => actualizaciones;
   int get deletes => eliminaciones;

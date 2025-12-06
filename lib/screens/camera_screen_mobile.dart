@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/image_processor.dart'; //  Importar el procesador
+import '../services/image_processor.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -12,7 +12,7 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   bool _isCameraActive = true;
-  bool _isProcessing = false; //  Nuevo estado para procesamiento
+  bool _isProcessing = false;
 
   Future<Uint8List?> _capturePhotoMobile() async {
     try {
@@ -21,14 +21,13 @@ class _CameraScreenState extends State<CameraScreen> {
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
         imageQuality: 90,
-        maxWidth: 1200, //  Limitar tamaño para mejor performance
+        maxWidth: 1200,
         maxHeight: 1200,
       );
 
       if (photo != null) {
         final originalBytes = await photo.readAsBytes();
 
-        //    Aplicar escala de grises
         setState(() {
           _isProcessing = true;
         });
@@ -97,7 +96,6 @@ class _CameraScreenState extends State<CameraScreen> {
 
               const SizedBox(height: 20),
 
-              //  Mostrar indicador de procesamiento
               if (_isProcessing) ...[
                 Container(
                   height: 300,

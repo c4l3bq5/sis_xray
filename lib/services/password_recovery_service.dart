@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PasswordRecoveryService {
-  // URL del microservicio de recovery en Render
   static const String baseUrl = 'https://wha-recovery-hxg2.onrender.com/api/recovery';
   
   Map<String, String> getHeaders() {
@@ -21,7 +20,6 @@ class PasswordRecoveryService {
       return json.decode(response.body);
     }
 
-    // Manejar errores
     try {
       final errorData = json.decode(response.body);
       final errorMessage = errorData['error'] ?? 'Error desconocido';
@@ -32,8 +30,6 @@ class PasswordRecoveryService {
     }
   }
 
-  /// Paso 1: Solicitar código de verificación
-  /// Envía un código de 6 dígitos al WhatsApp del usuario
   Future<RequestCodeResponse> requestCode(String identifier) async {
     try {
       final response = await http
@@ -52,8 +48,6 @@ class PasswordRecoveryService {
     }
   }
 
-  /// Paso 2: Verificar código de 6 dígitos
-  /// Retorna un resetToken si el código es correcto
   Future<VerifyCodeResponse> verifyCode(String identifier, String code) async {
     try {
       final response = await http
@@ -75,8 +69,6 @@ class PasswordRecoveryService {
     }
   }
 
-  /// Paso 3: Restablecer contraseña
-  /// Cambia la contraseña usando el resetToken
   Future<ResetPasswordResponse> resetPassword({
     required String identifier,
     required String resetToken,
@@ -102,8 +94,6 @@ class PasswordRecoveryService {
       rethrow;
     }
   }
-
-  /// Health check del microservicio
   Future<bool> checkHealth() async {
     try {
       final response = await http
@@ -120,10 +110,6 @@ class PasswordRecoveryService {
     }
   }
 }
-
-// ============================================================================
-// MODELOS DE RESPUESTA
-// ============================================================================
 
 class RequestCodeResponse {
   final String message;

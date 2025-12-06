@@ -1,4 +1,3 @@
-// lib/models/auth_models.dart
 class LoginRequest {
   final String usuario;
   final String contrasena;
@@ -124,8 +123,6 @@ class UserData {
     return rolNombre[0].toUpperCase() + rolNombre.substring(1).toLowerCase();
   }
 }
-
-// 🔥 NUEVOS MODELOS PARA MFA
 
 class MFAVerifyRequest {
   final int userId;

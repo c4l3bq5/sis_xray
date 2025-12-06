@@ -1,10 +1,8 @@
-// lib/screens/mfa_setup_qr_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/mfa_service.dart';
 import 'dart:convert';
 
-/// Pantalla que muestra el QR para configurar Google Authenticator
 class MFASetupQRScreen extends StatefulWidget {
   final int userId;
   final String username;
@@ -31,7 +29,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
   bool _isVerifying = false;
   String _errorMessage = '';
   
-  // Datos del setup MFA
   String? _qrCodeBase64;
   String? _secret;
   List<String>? _backupCodes;
@@ -61,7 +58,7 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
     });
 
     try {
-      print('🔐 Generando setup MFA para usuario ${widget.username}...');
+      print('Generando setup MFA para usuario ${widget.username}...');
       
       final setupData = await _mfaService.generateMFASetup(
         widget.userId,
@@ -76,9 +73,9 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
         _isLoadingSetup = false;
       });
 
-      print('✅ Setup MFA generado exitosamente');
+      print('Setup MFA generado exitosamente');
     } catch (e) {
-      print('❌ Error generando setup: $e');
+      print('Error generando setup: $e');
       setState(() {
         _errorMessage = 'Error al generar configuración MFA: ${e.toString()}';
         _isLoadingSetup = false;
@@ -168,7 +165,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Paso 1: Escanear QR
           _buildStepCard(
             step: 1,
             title: 'Escanea el código QR',
@@ -182,7 +178,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
                 ),
                 const SizedBox(height: 20),
                 
-                // QR Code
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -212,7 +207,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // Código manual (alternativa)
                 if (_secret != null) ...[
                   Text(
                     'O ingresa este código manualmente:',
@@ -262,7 +256,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
 
           const SizedBox(height: 24),
 
-          // Paso 2: Verificar código
           _buildStepCard(
             step: 2,
             title: 'Verifica el código',
@@ -276,7 +269,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Mensaje de error
                 if (_errorMessage.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -301,7 +293,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
                   const SizedBox(height: 20),
                 ],
 
-                // Campos de código
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(6, (index) {
@@ -343,7 +334,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
                           if (value.isEmpty && index > 0) {
                             _focusNodes[index - 1].requestFocus();
                           }
-                          // Auto-verificar cuando se complete
                           if (index == 5 && value.isNotEmpty) {
                             _verifyAndActivateMFA();
                           }
@@ -356,7 +346,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
 
                 const SizedBox(height: 24),
 
-                // Botón de verificar
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -394,13 +383,11 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
 
           const SizedBox(height: 24),
 
-          // Códigos de respaldo
           if (_backupCodes != null && _backupCodes!.isNotEmpty)
             _buildBackupCodesCard(),
 
           const SizedBox(height: 24),
 
-          // Botón de omitir
           Center(
             child: TextButton(
               onPressed: () {
@@ -533,7 +520,7 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
     });
 
     try {
-      print('🔐 Verificando y activando MFA...');
+      print(' Verificando y activando MFA...');
       
       final success = await _mfaService.activateMFA(
         widget.userId,
@@ -544,7 +531,6 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
       if (success) {
         if (!mounted) return;
 
-        // Mostrar mensaje de éxito
         await showDialog(
           context: context,
           barrierDismissible: false,
@@ -565,7 +551,7 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
             actions: [
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context); // Cerrar diálogo
+                  Navigator.pop(context);
                   Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
                 },
                 style: ElevatedButton.styleFrom(
@@ -578,13 +564,12 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
         );
       }
     } catch (e) {
-      print('❌ Error activando MFA: $e');
+      print(' Error activando MFA: $e');
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isVerifying = false;
       });
       
-      // Limpiar campos
       for (var controller in _controllers) {
         controller.clear();
       }
@@ -616,7 +601,7 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Cerrar diálogo
+              Navigator.pop(context);
               Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
             },
             style: ElevatedButton.styleFrom(

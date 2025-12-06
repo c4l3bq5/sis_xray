@@ -468,7 +468,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                ' Imágenes Radiológicas',
+                '📊 Imágenes Radiológicas',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -577,7 +577,6 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
     );
 
     if (shouldChange == true && mounted) {
-      // Regresar a XRayScreen y esperar resultado
       final result = await Navigator.push<Map<String, dynamic>>(
         context,
         MaterialPageRoute(
@@ -708,6 +707,7 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
       } else {
         savedHistory = await _medicalHistoryService.createMedicalHistory(request);
         
+        // 🔥 SUBIR IMÁGENES A MONGODB SI EXISTEN
         if (_hasImages) {
           await _uploadAndLinkImages(savedHistory.id);
         }
@@ -718,8 +718,8 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
           SnackBar(
             content: Text(
               _isEditing
-                  ? ' Historial actualizado exitosamente'
-                  : ' Historial clínico creado exitosamente',
+                  ? '  Historial actualizado exitosamente'
+                  : '  Historial clínico creado exitosamente',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
@@ -746,10 +746,15 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
     }
   }
 
+  // 🚀 MÉTODO CORREGIDO: Subir imágenes a MongoDB
   Future<void> _uploadAndLinkImages(String clinicHistoryId) async {
     try {
-      print('Subiendo imágenes a MongoDB...');
+      print('🔄 Subiendo imágenes a MongoDB...');
+      print(' Clinic History ID: $clinicHistoryId');
+      print('📊 Área detectada: $_area');
+      print('📝 Anotaciones: $_annotationsText');
       
+      // Subir imagen directamente con clinic_history_id
       final uploadResult = await GraphQLService.uploadRadImage(
         fileName: 'xray_${widget.patient.ci}_${DateTime.now().millisecondsSinceEpoch}.jpg',
         imageBytes: _originalImageBytes!,
@@ -757,21 +762,42 @@ class _MedicalHistoryFormScreenState extends State<MedicalHistoryFormScreen> {
         mimetype: 'image/jpeg',
         area: _area,
         annotations: _annotationsText,
+        clinicHistoryId: clinicHistoryId, //   Pasar ID directamente
       );
       
       if (uploadResult['success'] == true) {
-        final imageId = uploadResult['radImage']['id'] as String;
-        print(' Imagen subida con ID: $imageId');
+        final radImage = uploadResult['radImage'] as Map<String, dynamic>?;
+        final imageId = radImage?['id'] as String?;
         
-        await GraphQLService.linkImageToClinicHistory(
-          imageId: imageId,
-          clinicHistoryId: clinicHistoryId,
-        );
+        print('  Imagen subida exitosamente');
+        print('   - Image ID: $imageId');
+        print('   - Vinculada a: $clinicHistoryId');
         
-        print(' Imagen vinculada al historial: $clinicHistoryId');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('  Imágenes guardadas en MongoDB'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        print('   Upload no exitoso: ${uploadResult['message']}');
       }
     } catch (e) {
-      print(' Error subiendo imágenes: $e');
+      print('   Error subiendo imágenes a MongoDB: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('   Error al guardar imágenes: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      // No lanzar error para no bloquear el guardado del historial en PostgreSQL
     }
   }
 }

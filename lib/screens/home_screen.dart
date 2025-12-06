@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -48,7 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _currentUserRole = widget.userRole;
     _loadDashboardData();
     
-    // Cargar imágenes SOLO si es médico Y NO es administrador
     if (_esMedico && !_esAdministrador()) {
       _loadRecentXRayImages();
     }
@@ -135,14 +133,14 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoadingImages = true);
 
     try {
-      print('🔍 Cargando últimas 10 imágenes de RadImages...');
+      print(' Cargando últimas 10 imágenes de RadImages...');
       
       List<Map<String, dynamic>> images;
       
       try {
         images = await GraphQLService.getRecentRadImages(limit: 10);
       } catch (e) {
-        print('⚠️ recentRadImages no disponible, usando getAllRadImages...');
+        print(' recentRadImages no disponible, usando getAllRadImages...');
         final allImages = await GraphQLService.getAllRadImages();
         images = allImages.take(10).toList();
       }
@@ -154,9 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
       
-      print('✅ Total imágenes cargadas: ${images.length}');
+      print(' Total imágenes cargadas: ${images.length}');
     } catch (e) {
-      print('❌ Error cargando imágenes de RadImages: $e');
+      print(' Error cargando imágenes de RadImages: $e');
       if (mounted) {
         setState(() {
           _recentXRayImages = [];
@@ -238,21 +236,17 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header de bienvenida
                   _buildWelcomeHeader(greeting),
                   const SizedBox(height: 24),
                   
-                  // 🔥 NUEVO ORDEN: Imágenes PRIMERO (solo médicos NO administradores)
                   if (_esMedico && !_esAdministrador()) ...[
                     _buildRecentXRaySection(),
                     const SizedBox(height: 24),
                   ],
                   
-                  // Acciones rápidas para todos
                   _buildQuickActions(context),
                   const SizedBox(height: 24),
                   
-                  // Dashboard SOLO para administradores (al final)
                   if (_esAdministrador()) ...[
                     if (_errorMessage != null) ...[
                       _buildErrorCard(),
@@ -639,7 +633,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQuickActions(BuildContext context) {
     final List<_QuickAction> actions = [];
 
-    // Usuarios - Solo administradores
     if (_esAdministrador()) {
       actions.add(_QuickAction(
         title: 'Usuarios',
@@ -650,7 +643,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
     }
 
-    // Pacientes - Todos
     actions.add(_QuickAction(
       title: 'Pacientes',
       subtitle: 'Gestionar pacientes',
@@ -659,7 +651,6 @@ class _HomeScreenState extends State<HomeScreen> {
       route: '/patients',
     ));
 
-    // Radiografías - Solo médicos
     if (_esMedico) {
       actions.add(_QuickAction(
         title: 'Radiografías',
@@ -673,7 +664,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
     }
 
-    // Reportes - Solo administradores
     if (_esAdministrador()) {
       actions.add(_QuickAction(
         title: 'Reportes',
@@ -684,7 +674,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
     }
 
-    // Historiales - Solo médicos (NO administradores)
     if (_esMedico && !_esAdministrador()) {
       actions.add(_QuickAction(
         title: 'Historiales',
@@ -695,7 +684,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
     }
 
-    // Para administradores: botones compactos
     if (_esAdministrador()) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,7 +705,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Para otros roles: tarjetas normales
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -931,7 +918,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Widget compacto para estadísticas
 class _CompactStatItem extends StatelessWidget {
   final String title;
   final String value;
@@ -1020,7 +1006,6 @@ class _CompactStatItem extends StatelessWidget {
   }
 }
 
-// Widget para mostrar una tarjeta de imagen radiológica
 class _XRayImageCard extends StatelessWidget {
   final Map<String, dynamic> imageData;
 

@@ -18,14 +18,14 @@ class LogService {
   }
 
   dynamic _handleResponse(http.Response response, {String? endpoint}) {
-    print('📡 API Response [$endpoint]: ${response.statusCode}');
-    print('📄 Body: ${response.body.length > 500 ? response.body.substring(0, 500) + "..." : response.body}');
+    print(' API Response [$endpoint]: ${response.statusCode}');
+    print(' Body: ${response.body.length > 500 ? response.body.substring(0, 500) + "..." : response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       try {
         return json.decode(response.body);
       } catch (e) {
-        print('❌ Error parseando JSON: $e');
+        print(' Error parseando JSON: $e');
         throw Exception('Error al procesar la respuesta del servidor');
       }
     }
@@ -51,7 +51,6 @@ class LogService {
     }
   }
 
-  // Obtener logs con filtros opcionales
   Future<LogsResponse> getLogs({
     int? limit,
     int? offset,
@@ -63,7 +62,6 @@ class LogService {
     try {
       final headers = await _getHeaders();
 
-      // Construir query parameters
       final queryParams = <String, String>{};
       if (limit != null) queryParams['limit'] = limit.toString();
       if (offset != null) queryParams['offset'] = offset.toString();
@@ -73,7 +71,7 @@ class LogService {
       if (fechaFin != null) queryParams['fecha_fin'] = fechaFin;
 
       final uri = Uri.parse('$baseUrl/logs').replace(queryParameters: queryParams);
-      print('🔍 GET: $uri');
+      print(' GET: $uri');
 
       final response = await http
           .get(uri, headers: headers)
@@ -82,15 +80,14 @@ class LogService {
       final responseData = _handleResponse(response, endpoint: 'getLogs');
       return LogsResponse.fromJson(responseData);
     } catch (e) {
-      print('❌ Error obteniendo logs: $e');
+      print(' Error obteniendo logs: $e');
       rethrow;
     }
   }
 
-  // Obtener estadísticas de logs
   Future<LogStats> getStats() async {
     try {
-      print('🔍 Obteniendo estadísticas...');
+      print(' Obteniendo estadísticas...');
       final headers = await _getHeaders();
       final response = await http
           .get(Uri.parse('$baseUrl/logs/stats'), headers: headers)
@@ -98,22 +95,20 @@ class LogService {
 
       final responseData = _handleResponse(response, endpoint: 'getStats');
       
-      // Verificar si los datos están en 'data' o directamente en la respuesta
       final statsData = responseData['data'] ?? responseData;
-      print('📊 Datos de estadísticas recibidos: $statsData');
-      print('📊 Tipo de datos: ${statsData.runtimeType}');
+      print(' Datos de estadísticas recibidos: $statsData');
+      print(' Tipo de datos: ${statsData.runtimeType}');
       
       return LogStats.fromJson(statsData);
     } catch (e) {
-      print('❌ Error obteniendo estadísticas: $e');
+      print(' Error obteniendo estadísticas: $e');
       rethrow;
     }
   }
 
-  // Obtener resumen de acciones
   Future<Map<String, int>> getActionsSummary() async {
     try {
-      print('🔍 Obteniendo resumen de acciones...');
+      print(' Obteniendo resumen de acciones...');
       final headers = await _getHeaders();
       final response = await http
           .get(Uri.parse('$baseUrl/logs/actions-summary'), headers: headers)
@@ -121,22 +116,19 @@ class LogService {
 
       final responseData = _handleResponse(response, endpoint: 'getActionsSummary');
       
-      print('📊 Respuesta completa: $responseData');
-      print('📊 Tipo de respuesta: ${responseData.runtimeType}');
+      print(' Respuesta completa: $responseData');
+      print(' Tipo de respuesta: ${responseData.runtimeType}');
       
-      // Verificar si los datos están en 'data' o directamente en la respuesta
       dynamic summaryData = responseData['data'] ?? responseData;
-      print('📊 Summary data: $summaryData');
-      print('📊 Tipo de summary data: ${summaryData.runtimeType}');
+      print(' Summary data: $summaryData');
+      print(' Tipo de summary data: ${summaryData.runtimeType}');
       
-      // Si summaryData es una lista, convertirla a mapa
       if (summaryData is List) {
-        print('⚠️ La respuesta es una lista, convirtiéndola a mapa...');
+        print(' La respuesta es una lista, convirtiéndola a mapa...');
         final Map<String, int> result = {};
         
         for (var item in summaryData) {
           if (item is Map) {
-            // Intentar extraer la acción y el conteo
             final accion = item['accion']?.toString() ?? 
                           item['action']?.toString() ?? 
                           item['nombre']?.toString() ??
@@ -146,30 +138,27 @@ class LogService {
           }
         }
         
-        print('✅ Mapa convertido: $result');
+        print(' Mapa convertido: $result');
         return result;
       }
       
-      // Si es un mapa, convertir los valores a int
       if (summaryData is Map) {
-        print('✅ La respuesta es un mapa, procesándolo...');
+        print(' La respuesta es un mapa, procesándolo...');
         return summaryData.map((key, value) => 
           MapEntry(key.toString(), _parseToInt(value))
         );
       }
       
-      // Si no es ni lista ni mapa, retornar vacío
-      print('⚠️ Formato inesperado, retornando mapa vacío');
+      print(' Formato inesperado, retornando mapa vacío');
       return {};
       
     } catch (e) {
-      print('❌ Error obteniendo resumen: $e');
-      print('❌ Stack trace: ${StackTrace.current}');
+      print(' Error obteniendo resumen: $e');
+      print(' Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }
 
-  // Helper para convertir valores a int de forma segura
   int _parseToInt(dynamic value) {
     if (value == null) return 0;
     if (value is int) return value;
@@ -178,37 +167,34 @@ class LogService {
     return 0;
   }
 
-  // Obtener actividad reciente
   Future<LogsResponse> getRecentActivity({int limit = 20}) async {
     try {
-      print('🔍 Obteniendo actividad reciente...');
+      print(' Obteniendo actividad reciente...');
       final headers = await _getHeaders();
       final response = await http
           .get(Uri.parse('$baseUrl/logs/recent?limit=$limit'), headers: headers)
           .timeout(const Duration(seconds: 15));
 
       final responseData = _handleResponse(response, endpoint: 'getRecentActivity');
-      print('📊 Respuesta actividad reciente: $responseData');
-      print('📊 Tipo: ${responseData.runtimeType}');
+      print(' Respuesta actividad reciente: $responseData');
+      print(' Tipo: ${responseData.runtimeType}');
       
-      // Verificar estructura de la respuesta
       if (responseData is Map) {
         if (responseData.containsKey('data')) {
-          print('✅ Datos en campo "data"');
+          print(' Datos en campo "data"');
         } else if (responseData is List) {
-          print('⚠️ Respuesta es directamente una lista');
+          print(' Respuesta es directamente una lista');
         }
       }
       
       return LogsResponse.fromJson(responseData);
     } catch (e) {
-      print('❌ Error obteniendo actividad reciente: $e');
-      print('❌ Stack trace: ${StackTrace.current}');
+      print(' Error obteniendo actividad reciente: $e');
+      print(' Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }
 
-  // Obtener logs por usuario
   Future<LogsResponse> getLogsByUser(int usuarioId) async {
     try {
       final headers = await _getHeaders();
@@ -219,12 +205,11 @@ class LogService {
       final responseData = _handleResponse(response, endpoint: 'getLogsByUser');
       return LogsResponse.fromJson(responseData);
     } catch (e) {
-      print('❌ Error obteniendo logs del usuario: $e');
+      print(' Error obteniendo logs del usuario: $e');
       rethrow;
     }
   }
 
-  // Obtener log por ID
   Future<Log> getLogById(int id) async {
     try {
       final headers = await _getHeaders();
@@ -235,7 +220,7 @@ class LogService {
       final responseData = _handleResponse(response, endpoint: 'getLogById');
       return Log.fromJson(responseData['data']);
     } catch (e) {
-      print('❌ Error obteniendo log: $e');
+      print(' Error obteniendo log: $e');
       rethrow;
     }
   }

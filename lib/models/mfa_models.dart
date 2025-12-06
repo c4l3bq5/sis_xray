@@ -1,5 +1,3 @@
-// lib/models/mfa_models.dart
-
 class MFAVerifyResponse {
   final bool success;
   final String message;

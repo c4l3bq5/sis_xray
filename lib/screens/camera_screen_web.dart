@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
-// ignore: undefined_prefixed_name
 import 'dart:ui_web' as ui_web;
 
 class CameraScreen extends StatefulWidget {

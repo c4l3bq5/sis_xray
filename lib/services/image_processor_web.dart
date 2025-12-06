@@ -7,8 +7,6 @@ class ImageProcessor {
   /// Aplica solo escala de grises para web
   static Future<Uint8List> applyGrayscale(Uint8List imageBytes) async {
     try {
-      // En web, no aplicamos filtros, devolvemos la imagen original
-      // O si quieres escala de grises en web también:
       return _applyGrayscaleWeb(imageBytes);
     } catch (e) {
       debugPrint('Error aplicando escala de grises web: $e');
@@ -31,10 +29,8 @@ class ImageProcessor {
 
       final html.CanvasRenderingContext2D ctx = canvas.context2D;
 
-      // Dibujar imagen original
       ctx.drawImage(image, 0, 0);
 
-      // Aplicar filtro de escala de grises
       final imageData = ctx.getImageData(0, 0, canvas.width!, canvas.height!);
       final data = imageData.data;
 
@@ -42,14 +38,13 @@ class ImageProcessor {
         final gray =
             (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114)
                 .round();
-        data[i] = gray; // R
-        data[i + 1] = gray; // G
-        data[i + 2] = gray; // B
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
       }
 
       ctx.putImageData(imageData, 0, 0);
 
-      // Convertir a Blob
       canvas.toBlob('image/jpeg', 0.9).then((blob) {
         if (blob != null) {
           final reader = html.FileReader();

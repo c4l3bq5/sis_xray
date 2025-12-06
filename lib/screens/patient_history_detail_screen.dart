@@ -1,5 +1,6 @@
 // lib/screens/patient_history_detail_screen.dart
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/patient_models.dart';
@@ -7,6 +8,7 @@ import '../models/medical_history_models.dart';
 import '../services/medical_history_service.dart';
 import '../services/graphql_service.dart';
 import 'medical_history_form_screen.dart';
+import 'xray_screen.dart'; //   IMPORTAR XRayScreen
 
 class PatientHistoryDetailScreen extends StatefulWidget {
   final Paciente patient;
@@ -250,9 +252,9 @@ class _PatientHistoryDetailScreenState
     List<Map<String, dynamic>> images = [];
     try {
       images = await GraphQLService.getImagesByClinicHistory(history.id);
-      print(' Imágenes encontradas: ${images.length}');
+      print('📷 Imágenes encontradas: ${images.length}');
     } catch (e) {
-      print(' No se pudieron cargar imágenes: $e');
+      print('   No se pudieron cargar imágenes: $e');
     }
 
     final result = await Navigator.push(
@@ -277,11 +279,49 @@ class _PatientHistoryDetailScreenState
     }
   }
 
+  // 🔥 MÉTODO CORREGIDO: Ahora crea nuevo registro con XRay
   void _navigateToAddEntry() async {
-    // Si ya tiene historiales, editar el último
-    if (_histories.isNotEmpty) {
-      final latestHistory = _histories.first;
-      _navigateToEdit(latestHistory);
+    print('🆕 Creando nuevo registro para: ${widget.patient.nombreCompleto}');
+    
+    // 1. Ir a XRayScreen primero
+    final xrayResult = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const XRayScreen(),
+      ),
+    );
+
+    if (xrayResult == null) {
+      // Usuario canceló
+      print('   Usuario canceló el análisis');
+      return;
+    }
+
+    if (!mounted) return;
+
+    print('  Resultado de XRay recibido');
+    print('   - Original image: ${xrayResult['originalImage'] != null}');
+    print('   - Annotated image: ${xrayResult['annotatedImage'] != null}');
+    print('   - Analysis result: ${xrayResult['analysisResult'] != null}');
+
+    // 2. Ir al formulario con las imágenes
+    final formResult = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MedicalHistoryFormScreen(
+          patient: widget.patient,
+          // NO pasar existingHistory para crear uno nuevo
+          originalImageBytes: xrayResult['originalImage'] as Uint8List?,
+          annotatedImageBytes: xrayResult['annotatedImage'] as Uint8List?,
+          analysisResult: xrayResult['analysisResult'] as Map<String, dynamic>?,
+        ),
+      ),
+    );
+
+    // 3. Si se guardó exitosamente, recargar
+    if (formResult == true && mounted) {
+      print('  Nuevo registro creado, recargando lista...');
+      _refreshHistories();
     }
   }
 }

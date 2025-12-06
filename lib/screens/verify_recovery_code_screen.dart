@@ -1,4 +1,3 @@
-// lib/screens/verify_recovery_code_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -98,10 +97,9 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
     } catch (e) {
       String errorMsg = e.toString().replaceAll('Exception: ', '');
       
-      // Extraer intentos restantes si están en el error
       if (errorMsg.contains('attemptsLeft')) {
         setState(() {
-          _attemptsLeft = 2; // Por defecto, ajustar según la respuesta real
+          _attemptsLeft = 2;
         });
       }
       
@@ -142,7 +140,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
       if (!mounted) return;
 
       if (response.success) {
-        // Mostrar diálogo de éxito
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -204,7 +201,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
               children: [
                 const SizedBox(height: 20),
 
-                // Ícono
                 Center(
                   child: Container(
                     width: 80,
@@ -223,7 +219,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                 const SizedBox(height: 32),
 
-                // Título
                 Text(
                   _isCodeVerified ? 'Nueva contraseña' : 'Verificar código',
                   style: const TextStyle(
@@ -235,7 +230,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                 const SizedBox(height: 12),
 
-                // Descripción
                 Text(
                   _isCodeVerified
                       ? 'Ingresa tu nueva contraseña.'
@@ -249,9 +243,7 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                 const SizedBox(height: 32),
 
-                // ============ PASO 1: VERIFICAR CÓDIGO ============
                 if (!_isCodeVerified) ...[
-                  // Campo código
                   TextFormField(
                     controller: _codeController,
                     keyboardType: TextInputType.number,
@@ -289,7 +281,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Timer
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -327,7 +318,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
                   ],
                 ],
 
-                // ============ PASO 2: NUEVA CONTRASEÑA ============
                 if (_isCodeVerified) ...[
                   // Nueva contraseña
                   TextFormField(
@@ -367,7 +357,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Confirmar contraseña
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
@@ -406,7 +395,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                 const SizedBox(height: 16),
 
-                // Mensaje de error
                 if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -434,7 +422,6 @@ class _VerifyRecoveryCodeScreenState extends State<VerifyRecoveryCodeScreen> {
 
                 const SizedBox(height: 24),
 
-                // Botón principal
                 SizedBox(
                   width: double.infinity,
                   height: 56,

@@ -8,8 +8,8 @@ import 'screens/logs_screen.dart';
 import 'screens/users_screen.dart';
 import 'screens/patients_screen.dart';
 import 'screens/medical_history_screen.dart';
-import 'services/auth_service.dart'; // ✅ IMPORTANTE: No borrar este import
-import 'models/auth_models.dart'; // ✅ IMPORTANTE: No borrar este import
+import 'services/auth_service.dart'; 
+import 'models/auth_models.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -92,10 +92,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _currentUser = user;
             _isLoading = false;
           });
-          print('✅ Usuario autenticado: ${user?.nombreCompleto}');
+          print('  Usuario autenticado: ${user?.nombreCompleto}');
         }
       } else {
-        print('❌ Token inválido o expirado');
+        print('   Token inválido o expirado');
         if (mounted) {
           setState(() {
             _isAuthenticated = false;
@@ -105,7 +105,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
       }
     } catch (e) {
-      print('❌ Error en verificación: $e');
+      print('   Error en verificación: $e');
       if (mounted) {
         setState(() {
           _isAuthenticated = false;
@@ -116,9 +116,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
-  // ✅ LOGOUT DEFINITIVO - Usa el navigatorKey global para forzar navegación
+  //   LOGOUT DEFINITIVO - Usa el navigatorKey global para forzar navegación
   void _handleLogoutSync() {
-    print('🚪 Iniciando proceso de logout...');
+    print(' Iniciando proceso de logout...');
 
     try {
       // 1. Actualizar estado local PRIMERO
@@ -128,7 +128,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           _currentUser = null;
           _isLoading = false;
         });
-        print('✅ Estado local limpiado');
+        print('  Estado local limpiado');
       }
 
       // 2. Navegar usando el navigatorKey GLOBAL (esto es crucial para móvil)
@@ -138,13 +138,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
           '/login',
           (route) => false,
         );
-        print('✅ Navegación al login completada');
+        print('  Navegación al login completada');
       });
 
       // 3. Limpiar sesión en el servidor en segundo plano
       _performAsyncLogout();
     } catch (e) {
-      print('❌ Error en logout: $e');
+      print('   Error en logout: $e');
 
       // Forzar navegación incluso si hay error
       widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
@@ -158,9 +158,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _performAsyncLogout() async {
     try {
       await _authService.logout();
-      print('✅ Sesión cerrada en el servidor');
+      print('  Sesión cerrada en el servidor');
     } catch (e) {
-      print('⚠️ Error cerrando sesión en servidor: $e');
+      print('   Error cerrando sesión en servidor: $e');
       // No es crítico, la sesión local ya se limpió
     }
   }
@@ -195,10 +195,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    // ✅ Usuario autenticado - Renderizar HomeScreen DIRECTAMENTE
+    //   Usuario autenticado - Renderizar HomeScreen DIRECTAMENTE
     // NO navegar, solo renderizar - esto evita el problema del F5
     if (_isAuthenticated && _currentUser != null) {
-      print('✅ Renderizando HomeScreen para: ${_currentUser!.nombreCompleto}');
+      print(' Renderizando HomeScreen para: ${_currentUser!.nombreCompleto}');
       return HomeScreen(
         userName: _currentUser!.nombreCompleto,
         userRole: _currentUser!.rolFormateado,
@@ -207,8 +207,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    // ❌ No autenticado - Mostrar LoginScreen
-    print('🔐 Usuario no autenticado - Mostrando LoginScreen');
+    //  No autenticado - Mostrar LoginScreen
+    print(' Usuario no autenticado - Mostrando LoginScreen');
     return const LoginScreen();
   }
 

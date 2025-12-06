@@ -1,5 +1,3 @@
-// lib/models/role_models.dart
-
 class Rol {
   final int id;
   final String nombre;

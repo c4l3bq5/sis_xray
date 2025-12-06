@@ -1,4 +1,3 @@
-// lib/screens/mfa_verification_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/mfa_service.dart';
@@ -8,7 +7,7 @@ import '../models/auth_models.dart';
 class MFAVerificationScreen extends StatefulWidget {
   final int userId;
   final String username;
-  final String tempToken; // Token temporal pre-MFA
+  final String tempToken;
 
   const MFAVerificationScreen({
     Key? key,
@@ -79,7 +78,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Icono de seguridad
                         Container(
                           width: 80,
                           height: 80,
@@ -104,7 +102,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Título
                         Text(
                           'Verificación MFA',
                           style: TextStyle(
@@ -115,7 +112,7 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Ingresa el código de 6 dígitos\nde tu app Google Authenticator',
+                          'Ingresa el código de 6 dígitos\nde tu app de autenticación',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -124,7 +121,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                         ),
                         const SizedBox(height: 32),
 
-                        // Mensaje de error
                         if (_errorMessage.isNotEmpty) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -156,7 +152,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                           const SizedBox(height: 20),
                         ],
 
-                        // Campos de código
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(6, (index) {
@@ -198,7 +193,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                                   if (value.isEmpty && index > 0) {
                                     _focusNodes[index - 1].requestFocus();
                                   }
-                                  // Auto-verificar cuando se complete el código
                                   if (index == 5 && value.isNotEmpty) {
                                     _verifyMFA();
                                   }
@@ -211,7 +205,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Botón de verificar
                         SizedBox(
                           width: double.infinity,
                           height: 54,
@@ -248,7 +241,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
 
                         const SizedBox(height: 20),
 
-                        // Ayuda
                         Text(
                           '¿No tienes acceso a tu app?\nContacta al administrador',
                           style: TextStyle(
@@ -285,8 +277,7 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
     });
 
     try {
-      // 🔥 PASO 1: Verificar código MFA en microservicio
-      print('🔐 Verificando MFA en microservicio...');
+      print(' Verificando MFA en microservicio...');
       final mfaResponse = await _mfaService.verifyLoginMFA(widget.userId, code);
 
       if (!mfaResponse.success || mfaResponse.data?.mfaVerified != true) {
@@ -294,7 +285,6 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
           _errorMessage = mfaResponse.message;
           _isLoading = false;
         });
-        // Limpiar campos
         for (var controller in _controllers) {
           controller.clear();
         }
@@ -302,8 +292,7 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
         return;
       }
 
-      // 🔥 PASO 2: Obtener token final del API principal
-      print('✅ MFA verificado, obteniendo token final...');
+      print(' MFA verificado, obteniendo token final...');
       final loginResponse = await _authService.completeMFALogin(
         widget.tempToken,
         code,
@@ -317,23 +306,20 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
         return;
       }
 
-      // 🔥 PASO 3: Guardar sesión con el token REAL
-      print('💾 Guardando sesión con token real...');
+      print(' Guardando sesión con token real...');
       await _authService.saveSession(loginResponse);
 
       if (!mounted) return;
 
-      // 🔥 PASO 4: Navegar al home
-      print('✅ MFA verificado, navegando al home...');
+      print(' MFA verificado, navegando al home...');
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       
     } catch (e) {
-      print('❌ Error en verificación MFA: $e');
+      print(' Error en verificación MFA: $e');
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
-      // Limpiar campos
       for (var controller in _controllers) {
         controller.clear();
       }

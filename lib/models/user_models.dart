@@ -1,4 +1,3 @@
-// lib/models/user_models.dart
 class Usuario {
   final int id;
   final int personaId;
@@ -9,7 +8,6 @@ class Usuario {
   final DateTime createdAt;
   final DateTime? updatedAt;
 
-  // Datos de la persona
   final String nombre;
   final String aPaterno;
   final String? aMaterno;
@@ -20,7 +18,6 @@ class Usuario {
   final DateTime? fechaNac;
   final String? genero;
 
-  // Datos del rol
   final String rolNombre;
 
   Usuario({

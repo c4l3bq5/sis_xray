@@ -1,4 +1,3 @@
-// lib/screens/logs_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/log_models.dart';
@@ -355,7 +354,6 @@ class _LogsScreenState extends State<LogsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado con información
           Card(
             elevation: 0,
             color: Colors.blue.shade50,
@@ -381,7 +379,6 @@ class _LogsScreenState extends State<LogsScreen>
           ),
           const SizedBox(height: 16),
 
-          // Tarjetas de estadísticas generales
           const Text(
             'Resumen General',
             style: TextStyle(
@@ -431,7 +428,6 @@ class _LogsScreenState extends State<LogsScreen>
           ),
           const SizedBox(height: 24),
 
-          // Estadísticas por tipo de acción
           const Text(
             'Por Tipo de Acción',
             style: TextStyle(
@@ -471,7 +467,6 @@ class _LogsScreenState extends State<LogsScreen>
           ),
           const SizedBox(height: 24),
 
-          // Acciones más frecuentes
           if (_stats!.porAccion.isNotEmpty) ...[
             const Text(
               'Acciones Más Frecuentes',
@@ -556,7 +551,6 @@ class _LogsScreenState extends State<LogsScreen>
             const SizedBox(height: 24),
           ],
 
-          // Usuarios más activos
           if (_stats!.porUsuario.isNotEmpty) ...[
             const Text(
               'Usuarios Más Activos',

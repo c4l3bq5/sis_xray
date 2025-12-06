@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'camera_screen.dart';
 import 'dart:convert';
 import '../services/image_processor.dart';
-import '../services/api_service.dart'; // ¡IMPORTANTE! Importar el servicio API
+import '../services/api_service.dart';
 
 class XRayScreen extends StatefulWidget {
   const XRayScreen({super.key});

@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 import '../models/patient_models.dart';
 import '../services/patient_service.dart';
 import '../services/auth_service.dart';
+import '../services/medical_history_service.dart'; //   NUEVO
 import 'patient_screen_form.dart';
+import 'patient_history_detail_screen.dart'; //   NUEVO
 
 class PatientsScreen extends StatefulWidget {
   const PatientsScreen({super.key});
@@ -73,7 +75,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
     });
 
     try {
-      // INCLUIR PACIENTES INACTIVOS
       final response = await _patientService.getPacientes(
         includeInactive: true,
       );
@@ -86,7 +87,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
         _isLoading = false;
       });
 
-      // Aplicar filtros después de cargar los datos
       _filterPacientes(_searchController.text);
     } catch (e) {
       setState(() {
@@ -100,7 +100,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
     setState(() {
       List<Paciente> baseList = _pacientes;
 
-      // Aplicar filtro por estado
       List<Paciente> filteredByStatus = [];
       if (_mostrarActivos) {
         filteredByStatus.addAll(baseList.where((p) => p.estaActivo));
@@ -109,7 +108,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
         filteredByStatus.addAll(baseList.where((p) => !p.estaActivo));
       }
 
-      // Aplicar filtro de búsqueda
       if (query.isEmpty) {
         _pacientesFiltrados = filteredByStatus;
       } else {
@@ -206,6 +204,70 @@ class _PatientsScreenState extends State<PatientsScreen> {
             _buildPacienteDetails(paciente, scrollController),
       ),
     );
+  }
+
+  // 🔥 NUEVO MÉTODO: Navegar al historial del paciente
+  Future<void> _navigateToPatientHistory(Paciente paciente) async {
+    print(' Navegando al historial de: ${paciente.nombreCompleto}');
+    
+    // Cerrar el modal de detalles
+    Navigator.pop(context);
+    
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Obtener historiales del paciente
+      final medicalHistoryService = MedicalHistoryService();
+      final histories = await medicalHistoryService.getHistoryByPatient(
+        paciente.id!,
+      );
+
+      print('  Historiales cargados: ${histories.length}');
+
+      if (!mounted) return;
+
+      // Cerrar loading
+      Navigator.pop(context);
+
+      // Navegar a la pantalla de historial
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PatientHistoryDetailScreen(
+            patient: paciente,
+            histories: histories,
+          ),
+        ),
+      );
+
+      // Si se hicieron cambios, recargar la lista de pacientes
+      if (result == true) {
+        _loadData();
+      }
+    } catch (e) {
+      print('   Error cargando historial: $e');
+      
+      if (!mounted) return;
+
+      // Cerrar loading
+      Navigator.pop(context);
+
+      // Mostrar error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar historial: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Widget _buildPacienteDetails(
@@ -325,14 +387,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
                 ),
                 const SizedBox(width: 12),
               ],
-              // Botón Ver Historial - Solo médicos e internos
+              // 🔥 Botón Ver Historial - CORREGIDO
               if (_esMedico)
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // TODO: Navegar a historial médico
-                    },
+                    onPressed: () => _navigateToPatientHistory(paciente),
                     icon: const Icon(Icons.medical_services),
                     label: const Text('Ver Historial'),
                     style: ElevatedButton.styleFrom(
@@ -443,7 +502,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
         actions: [
-          // Botón de filtros - NUEVO
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list, color: Colors.white),
             onSelected: (value) {
@@ -460,7 +518,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                   _mostrarInactivos = false;
                 }
               });
-              _filterPacientes(_searchController.text); // Re-aplicar filtros
+              _filterPacientes(_searchController.text);
             },
             itemBuilder: (context) => [
               PopupMenuItem(
@@ -501,7 +559,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
               ),
             ],
           ),
-          // Botón de búsqueda existente
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -530,7 +587,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
                 ),
               ],
             ),
-      // FAB solo para médicos e internos
       floatingActionButton: _esMedico
           ? FloatingActionButton.extended(
               onPressed: () async {

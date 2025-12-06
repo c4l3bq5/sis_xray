@@ -1,4 +1,3 @@
-// lib/screens/medical_history_screen.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/patient_models.dart';
@@ -60,8 +59,8 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         });
       }
 
-      print('👥 Total pacientes activos: ${_allPatients.length}');
-      print('📋 Pacientes con historial: ${historiesMap.length}');
+      print(' Total pacientes activos: ${_allPatients.length}');
+      print(' Pacientes con historial: ${historiesMap.length}');
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -356,10 +355,8 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     );
   }
 
-  // 🚀 FLUJO A: Seleccionar Paciente → XRay → Form
   void _handlePatientTap(Paciente patient, bool hasHistory) async {
     if (hasHistory) {
-      // Ver historial completo
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -374,13 +371,11 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         _loadAllData();
       }
     } else {
-      // FLUJO NUEVO: XRay → Form
       await _createNewHistoryWithXRay(patient);
     }
   }
 
   Future<void> _createNewHistoryWithXRay(Paciente patient) async {
-    // 1. Ir a XRayScreen y esperar resultado
     final xrayResult = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
@@ -389,11 +384,9 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     );
 
     if (xrayResult == null) {
-      // Usuario canceló
       return;
     }
 
-    // 2. Ir al formulario con las imágenes
     final formResult = await Navigator.push(
       context,
       MaterialPageRoute(

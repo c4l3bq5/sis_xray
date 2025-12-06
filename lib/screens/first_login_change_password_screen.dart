@@ -128,7 +128,7 @@ class _FirstLoginChangePasswordScreenState
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              '⚠️ Esta contraseña es de un solo uso',
+                              '   Esta contraseña es de un solo uso',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.orange[900],
@@ -351,22 +351,22 @@ class _FirstLoginChangePasswordScreenState
     });
 
     try {
-      print('🔐 Cambiando contraseña temporal...');
+      print('🔐 Cambiando contraseña temporal (Directo API Principal)...');
 
-      // ✅ CORRECCIÓN: Usar 'currentPassword' en lugar de 'oldPassword'
+      //   Usar API Principal directamente (Bypass MFA Service)
       final response = await http
-          .post(
+          .patch(
             Uri.parse(
-              'https://mfaapi-production.up.railway.app/api/mfa/first-login/change-password',
+              'https://api-med-op32.onrender.com/api/users/${widget.userId}/password',
             ),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
+              'Authorization': 'Bearer ${widget.tempToken}', //   Token temporal
             },
             body: json.encode({
-              'userId': widget.userId,
-              'currentPassword': _oldPasswordController.text, // ✅ CAMBIADO
-              'newPassword': _newPasswordController.text,
+              'contrasena': _newPasswordController.text,
+              'es_temporal': false,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -375,55 +375,39 @@ class _FirstLoginChangePasswordScreenState
 
       final responseData = json.decode(response.body);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        print('✅ Contraseña cambiada exitosamente');
+      if (response.statusCode == 200) {
+        print('  Contraseña cambiada exitosamente');
 
-        final data = responseData['data'];
+        //   Login completo sin MFA (API Principal no maneja MFA en este endpoint)
+        print('  Login completo sin MFA');
 
-        // ✅ FLUJO 1: Si requiere MFA, ir a verificación
-        if (data['requiresMFA'] == true) {
-          print('🔐 Usuario requiere MFA, navegando...');
-
-          if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MFAVerificationScreen(
-                userId: widget.userId,
-                username: widget.username,
-                tempToken: data['token'] ?? widget.tempToken,
-              ),
-            ),
-          );
-          return;
-        }
-
-        // ✅ FLUJO 2: Login completo sin MFA
-        print('✅ Login completo sin MFA');
-
-        // Construir LoginResponse
-        final loginResponse = LoginResponse(
-          success: true,
-          message: 'Login exitoso',
-          data: LoginData(
-            token: data['token'],
-            user: UserData.fromJson(data['user']),
-            requiresMFA: false,
-            requiresPasswordChange: false,
+        // Construir LoginResponse simulado con los datos disponibles
+        // Nota: Al llamar directo a la API, no recibimos el objeto 'user' completo con rol
+        // Por lo que hacemos un fetch del usuario actualizado o usamos los datos que tenemos
+        
+        // Para asegurar consistencia, hacemos un login silencioso o redirigimos al login
+        // Pero para mejor UX, intentamos construir la sesión
+        
+        // Opción segura: Redirigir al login para que ingrese con nueva contraseña
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contraseña actualizada. Por favor inicia sesión.'),
+            backgroundColor: Colors.green,
           ),
         );
-
-        // Guardar sesión
-        await _authService.saveSession(loginResponse);
-        print('✅ Sesión guardada');
-
+        
+        // Esperar un momento para que vea el mensaje
+        await Future.delayed(const Duration(seconds: 2));
+        
         if (!mounted) return;
+        // Redirigir al login
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
 
-        // ✅ Navegar al root (AuthWrapper maneja el resto)
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       } else {
         // Error del servidor
-        print('❌ Error: ${responseData['message']}');
+        print('   Error: ${responseData['message']}');
         setState(() {
           _errorMessage =
               responseData['message'] ?? 'Error al cambiar contraseña';
@@ -431,7 +415,7 @@ class _FirstLoginChangePasswordScreenState
         });
       }
     } catch (e) {
-      print('❌ Excepción: $e');
+      print('   Excepción: $e');
       setState(() {
         _errorMessage = 'Error de conexión: ${e.toString()}';
         _isLoading = false;

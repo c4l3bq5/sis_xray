@@ -1,8 +1,5 @@
-// lib/models/medical_history_models.dart
-
-/// Modelo de historial clínico
 class MedicalHistory {
-  final String id; // ⚠️ Ahora es String: "0101", "0203", etc.
+  final String id;
   final int pacienteId;
   final int usuarioId;
   final String diagnostico;
@@ -13,7 +10,6 @@ class MedicalHistory {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // Datos adicionales de relaciones
   final String? nombrePaciente;
   final String? nombreDoctor;
 
@@ -34,7 +30,7 @@ class MedicalHistory {
 
   factory MedicalHistory.fromJson(Map<String, dynamic> json) {
     return MedicalHistory(
-      id: json['id']?.toString() ?? '0', // ⚠️ Convertir a String
+      id: json['id']?.toString() ?? '0',
       pacienteId: json['paciente_id'] ?? 0,
       usuarioId: json['usuario_id'] ?? 0,
       diagnostico: json['diagnostico'] ?? '',
@@ -65,7 +61,6 @@ class MedicalHistory {
   }
 }
 
-/// Request para crear historial clínico
 class CreateMedicalHistoryRequest {
   final int pacienteId;
   final String diagnostico;
@@ -92,7 +87,6 @@ class CreateMedicalHistoryRequest {
   }
 }
 
-/// Response genérico de la API
 class ApiResponse<T> {
   final bool success;
   final String message;

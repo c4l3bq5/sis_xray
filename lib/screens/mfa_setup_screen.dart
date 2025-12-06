@@ -1,13 +1,10 @@
-// lib/screens/mfa_setup_screen.dart
 import 'package:flutter/material.dart';
 import 'mfa_setup_qr_screen.dart';
 
-/// Pantalla que pregunta al usuario si desea configurar MFA
-/// Se muestra DESPUÉS del login exitoso si NO tiene MFA configurado
 class MFASetupScreen extends StatelessWidget {
   final int userId;
   final String username;
-  final String userName; // Nombre completo para HomeScreen
+  final String userName;
   final String userRole;
 
   const MFASetupScreen({
@@ -21,7 +18,6 @@ class MFASetupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      // Evitar que el usuario regrese con botón atrás
       onWillPop: () async => false,
       child: Scaffold(
         body: Container(
@@ -48,7 +44,6 @@ class MFASetupScreen extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Icono de seguridad
                           Container(
                             width: 100,
                             height: 100,
@@ -76,7 +71,6 @@ class MFASetupScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 32),
 
-                          // Título
                           Text(
                             '¡Bienvenido!',
                             style: TextStyle(
@@ -87,7 +81,6 @@ class MFASetupScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
 
-                          // Subtítulo
                           Text(
                             '¿Deseas proteger tu cuenta con MFA?',
                             style: TextStyle(
@@ -99,7 +92,6 @@ class MFASetupScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 24),
 
-                          // Información sobre MFA
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
@@ -146,7 +138,6 @@ class MFASetupScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 24),
 
-                          // Beneficios
                           _buildBenefit(
                             Icons.shield_outlined,
                             'Mayor seguridad',
@@ -167,13 +158,11 @@ class MFASetupScreen extends StatelessWidget {
 
                           const SizedBox(height: 32),
 
-                          // Botón de configurar MFA
                           SizedBox(
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
                               onPressed: () {
-                                // ✅ Navegar a la pantalla con QR
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -211,7 +200,6 @@ class MFASetupScreen extends StatelessWidget {
 
                           const SizedBox(height: 12),
 
-                          // Botón de omitir
                           SizedBox(
                             width: double.infinity,
                             height: 54,
@@ -238,7 +226,6 @@ class MFASetupScreen extends StatelessWidget {
 
                           const SizedBox(height: 16),
 
-                          // Nota informativa
                           Text(
                             'Podrás activar MFA en cualquier momento desde tu perfil',
                             style: TextStyle(
@@ -330,9 +317,8 @@ class MFASetupScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Cerrar diálogo
-              // ✅ SOLUCIÓN: Navegar a '/' en lugar de crear HomeScreen directamente
-              print('✅ Navegando al home sin MFA...');
+              Navigator.pop(context);
+              print(' Navegando al home sin MFA...');
               Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
             },
             style: ElevatedButton.styleFrom(

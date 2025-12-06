@@ -7,6 +7,7 @@ import '../models/user_models.dart';
 
 class AuthService {
   static const String baseUrl =
+  /// Acá va la url de la API REST
       'https://api-med-op32.onrender.com/api';
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -68,10 +69,9 @@ class AuthService {
     }
   }
 
-  /// 🔥 NUEVO: Obtiene el token final después de verificar MFA
   Future<LoginResponse> completeMFALogin(String tempToken, String codigoMfa) async {
     try {
-      print('🔐 Llamando a /api/auth/verify-mfa...');
+      print(' Llamando a /api/auth/verify-mfa...');
       final response = await http
           .post(
             Uri.parse('$baseUrl/auth/verify-mfa'),
@@ -84,10 +84,10 @@ class AuthService {
           .timeout(const Duration(seconds: 30));
 
       final responseData = _handleResponse(response);
-      print('✅ Token final obtenido');
+      print(' Token final obtenido');
       return LoginResponse.fromJson(responseData);
     } catch (e) {
-      print('❌ Error en completeMFALogin: $e');
+      print(' Error en completeMFALogin: $e');
       rethrow;
     }
   }
@@ -171,8 +171,6 @@ class AuthService {
     return await _secureStorage.read(key: 'auth_token');
   }
 
-  /// Obtiene datos del usuario desde la API (SIEMPRE datos frescos)
-  /// Luego actualiza el cache local automáticamente
   Future<UserData?> getUserData({bool forceRefresh = true}) async {
     try {
       final String? token = await _secureStorage.read(key: 'auth_token');
@@ -181,7 +179,6 @@ class AuthService {
         return null;
       }
 
-      // Si forceRefresh es true, consulta la API
       if (forceRefresh) {
         print('Consultando datos del usuario desde la API...');
 
@@ -196,11 +193,9 @@ class AuthService {
           if (response.statusCode == 200) {
             final responseData = json.decode(response.body);
 
-            // La respuesta tiene estructura: { "success": true, "data": {...} }
             if (responseData['data'] != null) {
               final userData = UserData.fromJson(responseData['data']);
 
-              // Guardar en cache para disponibilidad offline
               await _secureStorage.write(
                 key: 'user_data',
                 value: json.encode(userData.toJson()),
@@ -212,11 +207,9 @@ class AuthService {
           }
         } catch (apiError) {
           print('Error consultando API, usando cache: $apiError');
-          // Si falla la API, usa el cache
         }
       }
 
-      // Fallback: usar datos cacheados
       final String? userDataString = await _secureStorage.read(
         key: 'user_data',
       );
@@ -236,8 +229,6 @@ class AuthService {
     await _secureStorage.deleteAll();
   }
 
-  /// Actualiza los datos del usuario en el cache local
-  /// (Se llama automáticamente después de editar)
   Future<void> updateUserDataFromUsuario(Usuario usuario) async {
     try {
       final userData = UserData(

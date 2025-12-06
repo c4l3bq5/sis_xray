@@ -259,7 +259,7 @@ class ResponsiveNavBar extends StatelessWidget {
 
   //  LOGOUT MEJORADO - Estrategia más agresiva para móvil
   void _performLogout(BuildContext context) {
-    print('🚪 Iniciando logout desde ResponsiveNavBar...');
+    print(' Iniciando logout desde ResponsiveNavBar...');
 
     // 1️ Cerrar el drawer inmediatamente
     try {

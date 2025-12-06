@@ -3,11 +3,57 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
+import 'dart:async';
 import '../services/auth_service.dart';
 import '../models/user_models.dart';
 import '../models/role_models.dart';
 import '../services/user_service.dart';
 import '../services/role_service.dart';
+
+// 🔥 Custom formatter para limitar longitud estrictamente
+class StrictLengthFormatter extends TextInputFormatter {
+  final int maxLength;
+
+  StrictLengthFormatter(this.maxLength);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Si el nuevo valor excede la longitud máxima, rechazar el cambio
+    if (newValue.text.length > maxLength) {
+      return oldValue;
+    }
+    return newValue;
+  }
+}
+
+// 🔥 Custom formatter para solo dígitos con longitud estricta
+class DigitsOnlyFormatter extends TextInputFormatter {
+  final int maxLength;
+
+  DigitsOnlyFormatter(this.maxLength);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remover todo lo que no sea dígito
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // Si excede la longitud, rechazar
+    if (digitsOnly.length > maxLength) {
+      return oldValue;
+    }
+    
+    return TextEditingValue(
+      text: digitsOnly,
+      selection: TextSelection.collapsed(offset: digitsOnly.length),
+    );
+  }
+}
 
 class UserFormScreen extends StatefulWidget {
   final Usuario? usuario;
@@ -40,6 +86,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
   bool _isLoading = false;
   bool _cargandoRoles = true;
   bool get _isEditing => widget.usuario != null;
+
+  Timer? _debounceTimer; // 🔥 Timer para debounce
 
   final List<String> _generos = ['Masculino', 'Femenino', 'Otro'];
 
@@ -75,27 +123,31 @@ class _UserFormScreenState extends State<UserFormScreen> {
       _ciController = TextEditingController();
     }
 
-    // 🔥 Listener para generar usuario automáticamente
-    if (!_isEditing) {
-      _nombreController.addListener(_generarUsuario);
-      _aPaternoController.addListener(_generarUsuario);
-    }
+    // 🔥 NO usar listeners globales - usar onChanged en los campos específicos
   }
 
-  // 🔥 Generar username automáticamente
+  // 🔥 Generar username automáticamente (sin caracteres especiales) con debounce
   void _generarUsuario() {
-    final nombre = _nombreController.text.trim();
-    final apellido = _aPaternoController.text.trim();
+    // Cancelar el timer anterior si existe
+    _debounceTimer?.cancel();
+    
+    // Crear un nuevo timer con 300ms de delay
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      final nombre = _nombreController.text.trim();
+      final apellido = _aPaternoController.text.trim();
 
-    if (nombre.isNotEmpty && apellido.isNotEmpty) {
-      final primeraLetra = nombre[0].toLowerCase();
-      final apellidoClean = apellido.toLowerCase().replaceAll(' ', '');
-      final random = Random().nextInt(99999).toString().padLeft(5, '0');
+      if (nombre.isNotEmpty && apellido.isNotEmpty) {
+        // Ya no hay tildes ni ñ, simplemente generar username
+        final primeraLetra = nombre[0].toLowerCase();
+        final apellidoClean = apellido.toLowerCase().replaceAll(' ', '');
+        final random = Random().nextInt(99999).toString().padLeft(5, '0');
 
-      final usuario = '$primeraLetra$apellidoClean$random';
-      _usuarioController.text = usuario;
-    }
+        final usuario = '$primeraLetra$apellidoClean$random';
+        _usuarioController.text = usuario;
+      }
+    });
   }
+
 
   Future<void> _cargarRoles() async {
     try {
@@ -126,6 +178,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel(); // 🔥 Cancelar timer
     _nombreController.dispose();
     _aPaternoController.dispose();
     _aMaternoController.dispose();
@@ -343,7 +396,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
             context: context,
             barrierDismissible: false,
             builder: (context) => AlertDialog(
-              title: const Text('✅ Usuario Creado Exitosamente'),
+              title: const Text('  Usuario Creado Exitosamente'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +423,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    '⚠️ El usuario debe cambiar esta contraseña en el primer inicio de sesión.',
+                    '   El usuario debe cambiar esta contraseña en el primer inicio de sesión.',
                     style: TextStyle(fontSize: 12, color: Colors.orange),
                   ),
                 ],
@@ -477,10 +530,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     textCapitalization: TextCapitalization.words,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                        RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                        RegExp(r'[a-zA-Z\s]'), // 🔥 Solo letras sin tildes
                       ),
-                      LengthLimitingTextInputFormatter(50),
+                      StrictLengthFormatter(50),
                     ],
+                    onChanged: !_isEditing ? (_) => _generarUsuario() : null, // 🔥 Solo para crear
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'El nombre es obligatorio';
@@ -506,10 +560,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                           textCapitalization: TextCapitalization.words,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                              RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                              RegExp(r'[a-zA-Z\s]'), // 🔥 Solo letras sin tildes
                             ),
-                            LengthLimitingTextInputFormatter(50),
+                            StrictLengthFormatter(50),
                           ],
+                          onChanged: !_isEditing ? (_) => _generarUsuario() : null, // 🔥 Solo para crear
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Obligatorio';
@@ -530,9 +585,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
                           textCapitalization: TextCapitalization.words,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                              RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
+                              RegExp(r'[a-zA-Z\s]'), // 🔥 Solo letras sin tildes
                             ),
-                            LengthLimitingTextInputFormatter(50),
+                            StrictLengthFormatter(50),
                           ],
                         ),
                       ),
@@ -549,8 +604,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(7),
+                      DigitsOnlyFormatter(7), // 🔥 Custom formatter estricto
                     ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -643,8 +697,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                     ),
                     keyboardType: TextInputType.phone,
                     inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(8),
+                      DigitsOnlyFormatter(8), // 🔥 Custom formatter estricto
                     ],
                     validator: (value) {
                       if (value != null &&
@@ -665,7 +718,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       Icons.location_on,
                     ),
                     maxLines: 2,
-                    inputFormatters: [LengthLimitingTextInputFormatter(200)],
+                    inputFormatters: [StrictLengthFormatter(200)], // 🔥 Custom formatter
                   ),
                   const SizedBox(height: 32),
 

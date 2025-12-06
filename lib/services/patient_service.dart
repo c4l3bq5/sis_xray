@@ -1,4 +1,3 @@
-// lib/services/patient_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/patient_models.dart';
@@ -45,7 +44,6 @@ class PatientService {
     }
   }
 
-  // Obtener lista de pacientes
   Future<PacientesResponse> getPacientes({bool includeInactive = false}) async {
     try {
       final headers = await _getHeaders();
@@ -65,7 +63,6 @@ class PatientService {
     }
   }
 
-  // Obtener estadísticas de pacientes
   Future<PacienteStats> getStats() async {
     try {
       final headers = await _getHeaders();
@@ -81,7 +78,6 @@ class PatientService {
     }
   }
 
-  // Buscar pacientes
   Future<PacientesResponse> searchPacientes(String query) async {
     try {
       final headers = await _getHeaders();
@@ -97,7 +93,6 @@ class PatientService {
     }
   }
 
-  // Obtener paciente por CI
   Future<Paciente> getPacienteByCI(String ci) async {
     try {
       final headers = await _getHeaders();
@@ -113,7 +108,6 @@ class PatientService {
     }
   }
 
-  // Obtener paciente por ID
   Future<Paciente> getPacienteById(int id) async {
     try {
       final headers = await _getHeaders();
@@ -129,12 +123,10 @@ class PatientService {
     }
   }
 
-  // Crear paciente
   Future<Paciente> crearPaciente(Paciente paciente) async {
     try {
       final headers = await _getHeaders();
 
-      // Datos para crear la persona
       final personaData = {
         'nombre': paciente.nombre,
         'a_paterno': paciente.aPaterno,
@@ -147,9 +139,8 @@ class PatientService {
         'domicilio': paciente.domicilio,
       };
 
-      print(' DATOS A ENVIAR: $personaData'); // ← AGREGA ESTA LÍNEA
+      print(' DATOS A ENVIAR: $personaData');
 
-      // Crear la persona primero
       print(' Creando persona...');
       final personaResponse = await http
           .post(
@@ -163,7 +154,6 @@ class PatientService {
       final personaId = personaResponseData['data']['id'];
       print(' Persona creada con ID: $personaId');
 
-      // Datos para crear el paciente
       final pacienteData = {
         'persona_id': personaId,
         'grupo_sanguineo': paciente.grupoSanguineo,
@@ -175,7 +165,6 @@ class PatientService {
 
       print(' DATOS PACIENTE A ENVIAR: $pacienteData');
 
-      // Crear el paciente con la persona_id
       print(' Creando paciente...');
       final pacienteResponse = await http
           .post(
@@ -195,14 +184,11 @@ class PatientService {
     }
   }
 
-  // Actualizar paciente
   Future<Paciente> actualizarPaciente(int id, Paciente paciente) async {
     try {
       final headers = await _getHeaders();
 
-      // Enviar datos PLANOS, no anidados
       final Map<String, dynamic> dataToUpdate = {
-        // Datos de persona
         'nombre': paciente.nombre,
         'a_paterno': paciente.aPaterno,
         'a_materno': paciente.aMaterno,
@@ -212,7 +198,6 @@ class PatientService {
         'ci': paciente.ci,
         'genero': paciente.genero,
         'domicilio': paciente.domicilio,
-        // Datos de paciente
         'grupo_sanguineo': paciente.grupoSanguineo,
         'alergias': paciente.alergias,
         'antecedentes': paciente.antecedentes,
@@ -239,7 +224,6 @@ class PatientService {
     }
   }
 
-  // Desactivar paciente (solo admin)
   Future<bool> desactivarPaciente(int id) async {
     try {
       final headers = await _getHeaders();
@@ -255,7 +239,6 @@ class PatientService {
     }
   }
 
-  // Activar paciente (solo admin)
   Future<bool> activarPaciente(int id) async {
     try {
       final headers = await _getHeaders();

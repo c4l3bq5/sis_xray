@@ -1,4 +1,3 @@
-// lib/services/role_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/role_models.dart';
@@ -40,7 +39,6 @@ class RoleService {
     }
   }
 
-  // Obtener todos los roles
   Future<List<Rol>> obtenerRoles() async {
     try {
       final headers = await _getHeaders();
