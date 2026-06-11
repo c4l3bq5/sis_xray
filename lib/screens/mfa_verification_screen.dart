@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/mfa_service.dart';
 import '../services/auth_service.dart';
 import '../models/auth_models.dart';
+import '../theme/app_colors.dart';
 
 class MFAVerificationScreen extends StatefulWidget {
   final int userId;
@@ -167,21 +168,23 @@ class _MFAVerificationScreenState extends State<MFAVerificationScreen> {
                                 style: const TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
+                                  color: AppColors.textoPrincipal,
                                 ),
                                 decoration: InputDecoration(
                                   counterText: '',
+                                  contentPadding: EdgeInsets.zero,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: Colors.blue[700]!,
+                                    borderSide: const BorderSide(
+                                      color: AppColors.azulOscuroLogo,
                                       width: 2,
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.grey[50],
+                                  fillColor: Colors.white,
                                 ),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,

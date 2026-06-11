@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String _baseUrl =
-      'https://savings-nearly-wise-largest.trycloudflare.com';
+      'https://nursing-vienna-maritime-forge.trycloudflare.com';
 
   /// [imageBytes] - Bytes de la imagen en formato JPG/PNG
 

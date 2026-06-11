@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/mfa_service.dart';
 import 'dart:convert';
+import '../theme/app_colors.dart';
 
 class MFASetupQRScreen extends StatefulWidget {
   final int userId;
@@ -308,21 +309,23 @@ class _MFASetupQRScreenState extends State<MFASetupQRScreen> {
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textoPrincipal,
                         ),
                         decoration: InputDecoration(
                           counterText: '',
+                          contentPadding: EdgeInsets.zero,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Colors.green[700]!,
+                            borderSide: const BorderSide(
+                              color: AppColors.azulOscuroLogo,
                               width: 2,
                             ),
                           ),
                           filled: true,
-                          fillColor: Colors.grey[50],
+                          fillColor: Colors.white,
                         ),
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,

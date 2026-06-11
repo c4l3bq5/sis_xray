@@ -344,23 +344,23 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
             _buildSectionTitle('Datos Personales', Icons.person),
             const SizedBox(height: 16),
 
-            // 🔥 CI - Solo números, exactamente 7 dígitos
+            // CI - Solo números, máximo 10 dígitos
             TextFormField(
               controller: _ciController,
               decoration: _inputDecoration(
-                'Carnet de Identidad * (7 dígitos)',
+                'Carnet de Identidad * (máx. 10 dígitos)',
                 Icons.badge,
               ),
               keyboardType: TextInputType.number,
               inputFormatters: [
-                DigitsOnlyFormatter(7), // 🔥 Custom formatter estricto
+                DigitsOnlyFormatter(10), // máximo 10 dígitos
               ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'El CI es obligatorio';
                 }
-                if (value.length != 7) {
-                  return 'El CI debe tener exactamente 7 dígitos';
+                if (value.length < 1 || value.length > 10) {
+                  return 'El CI debe tener entre 1 y 10 dígitos';
                 }
                 return null;
               },
@@ -567,15 +567,15 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
                   child: TextFormField(
                     controller: _provinciaController,
                     decoration: _inputDecoration(
-                      'Provincia',
-                      Icons.location_city,
+                      'Lugar de Procedencia',
+                      Icons.place,
                     ),
                     textCapitalization: TextCapitalization.words,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                         RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]'),
                       ),
-                      StrictLengthFormatter(50),
+                      StrictLengthFormatter(100),
                     ],
                   ),
                 ),

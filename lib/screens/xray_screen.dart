@@ -8,6 +8,7 @@ import 'camera_screen.dart';
 import 'dart:convert';
 import '../services/image_processor.dart';
 import '../services/api_service.dart';
+import '../theme/app_colors.dart';
 
 class XRayScreen extends StatefulWidget {
   const XRayScreen({super.key});
@@ -235,7 +236,7 @@ class _XRayScreenState extends State<XRayScreen> {
             Text('Analizando imagen original (calidad completa)...'),
           ],
         ),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: AppColors.azulOscuroLogo,
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 3),
       ),
@@ -341,7 +342,7 @@ class _XRayScreenState extends State<XRayScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.blueAccent,
+              color: AppColors.azulOscuroLogo,
             ),
           ),
           const SizedBox(height: 12),
@@ -522,10 +523,10 @@ class _XRayScreenState extends State<XRayScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.tealTurquesaSanitario),
               ),
-              SizedBox(height: 15),
-              Text(
+              const SizedBox(height: 15),
+              const Text(
                 'Cargando imagen...',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -542,7 +543,7 @@ class _XRayScreenState extends State<XRayScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: _filtersApplied ? Colors.green : Colors.blueAccent,
+            color: _filtersApplied ? Colors.green : AppColors.azulOscuroLogo,
             width: 2,
           ),
         ),
@@ -787,7 +788,13 @@ class _XRayScreenState extends State<XRayScreen> {
     // Leer region_analysis
     if (result.containsKey('region_analysis')) {
       final regionAnalysis = result['region_analysis'] as Map<String, dynamic>?;
-      region = regionAnalysis?['region']?.toString().toUpperCase() ?? 'N/A';
+      final rawRegion = regionAnalysis?['region']?.toString().toLowerCase() ?? '';
+      const regionLabels = {
+        'upper': 'Extremidad Superior',
+        'lower': 'Extremidad Inferior',
+        'other': 'Otra Región',
+      };
+      region = regionLabels[rawRegion] ?? rawRegion.toUpperCase();
       confidence = regionAnalysis?['confidence'] as double? ?? 0.0;
     }
 
@@ -830,7 +837,7 @@ class _XRayScreenState extends State<XRayScreen> {
       mainMessage = ' LUXACIÓN DETECTADA';
       mainIcon = Icons.broken_image;
     } else if (sicknessCount > 0) {
-      mainColor = Colors.blue;
+      mainColor = AppColors.azulOscuroLogo;
       mainMessage = ' ENFERMEDAD DETECTADA';
       mainIcon = Icons.medical_services;
     } else if (microfractures > 0) {
@@ -882,7 +889,7 @@ class _XRayScreenState extends State<XRayScreen> {
             'Región Analizada',
             region,
             Icons.location_on,
-            Colors.blueAccent,
+            AppColors.azulOscuroLogo,
           ),
           _buildInfoRow(
             'Nivel de Confianza',
@@ -914,7 +921,7 @@ class _XRayScreenState extends State<XRayScreen> {
             _buildHallazgoChip(' Alertas Críticas', alertCount, Colors.purple),
 
           if (sicknessCount > 0)
-            _buildHallazgoChip(' Enfermedades', sicknessCount, Colors.blue),
+            _buildHallazgoChip(' Enfermedades', sicknessCount, AppColors.tealTurquesaSanitario),
 
           if (majorFractures > 0)
             _buildHallazgoChip(
@@ -979,10 +986,10 @@ class _XRayScreenState extends State<XRayScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: requiresAttention ? Colors.orange[100] : Colors.blue[50],
+                color: requiresAttention ? Colors.orange[100] : AppColors.grisClaro,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: requiresAttention ? Colors.orange : Colors.blue,
+                  color: requiresAttention ? Colors.orange : AppColors.azulOscuroLogo,
                   width: 2,
                 ),
               ),
@@ -993,7 +1000,7 @@ class _XRayScreenState extends State<XRayScreen> {
                     children: [
                       Icon(
                         Icons.medical_information,
-                        color: requiresAttention ? Colors.orange : Colors.blue,
+                        color: requiresAttention ? Colors.orange : AppColors.azulOscuroLogo,
                         size: 24,
                       ),
                       const SizedBox(width: 8),
@@ -1085,7 +1092,7 @@ class _XRayScreenState extends State<XRayScreen> {
         typeLabel = 'ALERTA CRÍTICA';
         break;
       case 'SICKNESS':
-        cardColor = Colors.blue;
+        cardColor = AppColors.azulOscuroLogo;
         typeLabel = 'ENFERMEDAD';
         break;
       case 'LUXATION':
@@ -1267,7 +1274,7 @@ class _XRayScreenState extends State<XRayScreen> {
           'Análisis de Radiografía',
           style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: AppColors.azulOscuroLogo,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -1289,7 +1296,7 @@ class _XRayScreenState extends State<XRayScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
+                      color: AppColors.azulOscuroLogo,
                     ),
                   ),
                   SizedBox(height: 8),
@@ -1320,7 +1327,7 @@ class _XRayScreenState extends State<XRayScreen> {
                       ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blue,
+                        backgroundColor: AppColors.azulOscuroLogo,
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: Colors.grey[300],
                         shape: RoundedRectangleBorder(
@@ -1346,7 +1353,7 @@ class _XRayScreenState extends State<XRayScreen> {
                       ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.green,
+                        backgroundColor: AppColors.tealTurquesaSanitario,
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: Colors.grey[300],
                         shape: RoundedRectangleBorder(
@@ -1428,7 +1435,7 @@ class _XRayScreenState extends State<XRayScreen> {
                         children: [
                           CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.blueAccent,
+                              AppColors.azulOscuroLogo,
                             ),
                           ),
                           SizedBox(height: 15),
@@ -1447,17 +1454,16 @@ class _XRayScreenState extends State<XRayScreen> {
                 if (_apiResult != null) _buildAnalysisResult(_apiResult!),
 
                 if (_apiResult != null && 
-    _apiResult!['status'] == 'success' && 
-    _annotatedImageBytes != null)
+    _apiResult!['status'] == 'success')
   Container(
     margin: const EdgeInsets.only(top: 20),
     width: double.infinity,
     child: ElevatedButton.icon(
       onPressed: () {
-        // Devolver datos al formulario
+        // Devolver datos al formulario - usar imagen original si no hay anotada
         Navigator.pop(context, {
           'originalImage': _imageBytes,
-          'annotatedImage': _annotatedImageBytes,
+          'annotatedImage': _annotatedImageBytes ?? _imageBytes,
           'analysisResult': _apiResult,
         });
       },
@@ -1468,7 +1474,7 @@ class _XRayScreenState extends State<XRayScreen> {
       ),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 18),
-        backgroundColor: Colors.green,
+        backgroundColor: AppColors.naranjaCalido,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -1486,15 +1492,15 @@ class _XRayScreenState extends State<XRayScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: AppColors.grisClaro,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue[100]!),
+                    border: Border.all(color: AppColors.azulOscuroLogo.withOpacity(0.2)),
                   ),
                   child: Row(
                     children: [
                       const Icon(
                         Icons.info_outline,
-                        color: Colors.blueAccent,
+                        color: AppColors.azulOscuroLogo,
                         size: 24,
                       ),
                       const SizedBox(width: 12),
@@ -1509,7 +1515,7 @@ class _XRayScreenState extends State<XRayScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.blueAccent,
+                                color: AppColors.azulOscuroLogo,
                               ),
                             ),
                             const SizedBox(height: 4),

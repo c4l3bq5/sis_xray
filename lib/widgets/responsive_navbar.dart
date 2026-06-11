@@ -1,6 +1,7 @@
 // widgets/responsive_navbar.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../theme/app_colors.dart';
 
 class ResponsiveNavBar extends StatelessWidget {
   final String currentUser;
@@ -34,7 +35,7 @@ class ResponsiveNavBar extends StatelessWidget {
         children: [
           // Header del drawer
           DrawerHeader(
-            decoration: const BoxDecoration(color: Colors.blueAccent),
+            decoration: const BoxDecoration(color: AppColors.azulOscuroLogo),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -56,7 +57,7 @@ class ResponsiveNavBar extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueAccent,
+                            color: AppColors.azulOscuroLogo,
                           ),
                         ),
                       ),
@@ -122,7 +123,7 @@ class ResponsiveNavBar extends StatelessWidget {
                 ListTile(
                   leading: const Icon(
                     Icons.home,
-                    color: Colors.blueAccent,
+                    color: AppColors.azulOscuroLogo,
                     size: 22,
                   ),
                   title: const Text('Inicio', style: TextStyle(fontSize: 14)),
@@ -137,7 +138,7 @@ class ResponsiveNavBar extends StatelessWidget {
                   ListTile(
                     leading: const Icon(
                       Icons.people,
-                      color: Colors.blueAccent,
+                      color: AppColors.azulOscuroLogo,
                       size: 22,
                     ),
                     title: const Text(
@@ -154,7 +155,7 @@ class ResponsiveNavBar extends StatelessWidget {
                 ListTile(
                   leading: const Icon(
                     Icons.personal_injury,
-                    color: Colors.blueAccent,
+                    color: AppColors.azulOscuroLogo,
                     size: 22,
                   ),
                   title: const Text(
@@ -172,7 +173,7 @@ class ResponsiveNavBar extends StatelessWidget {
                   ListTile(
                     leading: const Icon(
                       Icons.assessment,
-                      color: Colors.blueAccent,
+                      color: AppColors.azulOscuroLogo,
                       size: 22,
                     ),
                     title: const Text(
@@ -190,7 +191,7 @@ class ResponsiveNavBar extends StatelessWidget {
                   ListTile(
                     leading: const Icon(
                       Icons.upload_file,
-                      color: Colors.blueAccent,
+                      color: AppColors.azulOscuroLogo,
                       size: 22,
                     ),
                     title: const Text(

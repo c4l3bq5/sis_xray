@@ -11,6 +11,9 @@ import 'screens/medical_history_screen.dart';
 import 'services/auth_service.dart'; 
 import 'models/auth_models.dart'; 
 
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
@@ -30,7 +33,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sistema de Traumatología',
+      title: 'Radilens',
       debugShowCheckedModeBanner: false,
       locale: const Locale('es', 'ES'),
       localizationsDelegates: const [
@@ -39,10 +42,7 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('es', 'ES'), Locale('en', 'US')],
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
+      theme: AppTheme.lightTheme,
       navigatorKey: _navigatorKey,
       home: AuthWrapper(navigatorKey: _navigatorKey),
       routes: {
@@ -171,11 +171,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isLoading) {
       return Scaffold(
         body: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.blue[700]!, Colors.blue[900]!],
+              colors: [AppColors.azulOscuroLogo, AppColors.tealTurquesaSanitario],
             ),
           ),
           child: const Center(

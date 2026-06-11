@@ -356,8 +356,8 @@ class _PatientsScreenState extends State<PatientsScreen> {
               _buildInfoRow(Icons.height, 'Estatura', '${paciente.estatura} m'),
             if (paciente.provincia != null)
               _buildInfoRow(
-                Icons.location_city,
-                'Provincia',
+                Icons.place,
+                'Lugar de Procedencia',
                 paciente.provincia!,
               ),
           ]),

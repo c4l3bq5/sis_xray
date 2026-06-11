@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/log_service.dart';
 import '../services/graphql_service.dart';
 import '../models/log_models.dart';
+import '../theme/app_colors.dart';
 import 'xray_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>>? _recentXRayImages;
   bool _isLoading = true;
   bool _isLoadingImages = true;
+  bool _hasStartedLoadingImages = false;
   String? _errorMessage;
 
   @override
@@ -48,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDashboardData();
     
     if (_esMedico && !_esAdministrador()) {
+      _hasStartedLoadingImages = true;
       _loadRecentXRayImages();
     }
   }
@@ -62,10 +65,16 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final userData = await _authService.getUserData();
       if (userData != null && mounted) {
+        final newRole = userData.rolFormateado;
         setState(() {
           _currentUserName = userData.nombreCompleto;
-          _currentUserRole = userData.rolFormateado;
+          _currentUserRole = newRole;
         });
+        
+        // Auto-cargar si se detecta que es médico y aún no se inició la carga
+        if (_esMedico && !_esAdministrador() && _recentXRayImages == null && !_hasStartedLoadingImages) {
+          _loadRecentXRayImages();
+        }
       }
     } catch (e) {
       print('Error cargando datos del usuario: $e');
@@ -130,6 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadRecentXRayImages() async {
+    // Si ya se inició la carga y no estamos forzando un refresco, salir
+    if (_hasStartedLoadingImages && _recentXRayImages != null) return;
+    
+    _hasStartedLoadingImages = true;
     setState(() => _isLoadingImages = true);
 
     try {
@@ -159,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _recentXRayImages = [];
           _isLoadingImages = false;
+          _hasStartedLoadingImages = false; // Permitir reintentar
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,10 +205,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Sistema de Traumatología',
+          'Radilens',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: AppColors.azulOscuroLogo,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
         actions: [
@@ -360,10 +374,10 @@ class _HomeScreenState extends State<HomeScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.blueAccent, Colors.blue[700]!],
+            colors: [AppColors.azulOscuroLogo, AppColors.tealTurquesaSanitario],
           ),
           borderRadius: BorderRadius.circular(16),
         ),
@@ -638,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Usuarios',
         subtitle: 'Administrar usuarios',
         icon: Icons.people,
-        color: Colors.purple,
+        color: AppColors.magentaRedefinido,
         route: '/users',
       ));
     }
@@ -647,7 +661,7 @@ class _HomeScreenState extends State<HomeScreen> {
       title: 'Pacientes',
       subtitle: 'Gestionar pacientes',
       icon: Icons.personal_injury,
-      color: Colors.green,
+      color: AppColors.tealTurquesaSanitario,
       route: '/patients',
     ));
 
@@ -656,7 +670,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Radiografías',
         subtitle: 'Analizar imágenes',
         icon: Icons.upload_file,
-        color: Colors.blueAccent,
+        color: AppColors.azulOscuroLogo,
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const XRayScreen()),
@@ -669,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Reportes',
         subtitle: 'Ver logs del sistema',
         icon: Icons.assessment,
-        color: Colors.teal,
+        color: AppColors.tealTurquesaSanitario,
         route: '/logs',
       ));
     }
@@ -679,7 +693,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Historiales',
         subtitle: 'Consultar registros',
         icon: Icons.medical_services,
-        color: Colors.orange,
+        color: AppColors.naranjaCalido,
         route: '/medical-history',
       ));
     }
@@ -787,7 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.1),
+                      color: AppColors.azulOscuroLogo.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -795,7 +809,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent,
+                        color: AppColors.azulOscuroLogo,
                       ),
                     ),
                   ),
@@ -805,7 +819,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: _loadRecentXRayImages,
               icon: const Icon(Icons.refresh, size: 20),
               tooltip: 'Recargar imágenes',
-              color: Colors.blueAccent,
+              color: AppColors.azulOscuroLogo,
             ),
           ],
         ),
@@ -1018,7 +1032,10 @@ class _XRayImageCard extends StatelessWidget {
         ? DateTime.parse(imageData['uploadDate'] as String)
         : DateTime.now();
     final annotations = imageData['annotations'] as String? ?? '';
-    final hasFractures = annotations.toLowerCase().contains('fractura');
+    final annotationsLower = annotations.toLowerCase();
+    final hasFractures = annotationsLower.contains('fractura') &&
+        !annotationsLower.contains('no se detectaron') &&
+        !annotationsLower.contains('sin fractura');
     final area = imageData['area'] as String? ?? 'unknown';
     
     final imageBase64 = imageData['mask'] as String? ?? imageData['image'] as String? ?? '';

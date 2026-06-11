@@ -1,8 +1,10 @@
 // lib/screens/login_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/mfa_service.dart';
 import '../models/auth_models.dart';
+import '../theme/app_colors.dart';
 import 'mfa_verification_screen.dart';
 import 'first_login_change_password_screen.dart';
 import 'mfa_setup_screen.dart';
@@ -28,8 +30,50 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String _errorMessage = '';
 
+  // Bloqueo temporal por demasiados intentos
+  bool _isBlocked = false;
+  int _blockSecondsRemaining = 0;
+  Timer? _blockTimer;
+
+  void _startBlockCountdown(int minutes) {
+    _blockTimer?.cancel();
+    setState(() {
+      _isBlocked = true;
+      _blockSecondsRemaining = minutes * 60;
+      _errorMessage = '';
+    });
+    _blockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _blockSecondsRemaining--;
+      });
+      if (_blockSecondsRemaining <= 0) {
+        timer.cancel();
+        if (mounted) {
+          setState(() {
+            _isBlocked = false;
+            _blockSecondsRemaining = 0;
+          });
+        }
+      }
+    });
+  }
+
+  String get _blockCountdownText {
+    final mins = _blockSecondsRemaining ~/ 60;
+    final secs = _blockSecondsRemaining % 60;
+    if (mins > 0) {
+      return '$mins min ${secs.toString().padLeft(2, '0')} seg';
+    }
+    return '${secs} seg';
+  }
+
   @override
   void dispose() {
+    _blockTimer?.cancel();
     _usuarioController.dispose();
     _contrasenaController.dispose();
     _usuarioFocusNode.dispose();
@@ -41,11 +85,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.blue[700]!, Colors.blue[900]!],
+            colors: [AppColors.azulOscuroLogo, AppColors.tealTurquesaSanitario],
           ),
         ),
         child: SafeArea(
@@ -71,13 +115,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Colors.blue[400]!, Colors.blue[700]!],
+                              gradient: const LinearGradient(
+                                colors: [AppColors.tealTurquesaSanitario, AppColors.azulOscuroLogo],
                               ),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.blue.withOpacity(0.3),
+                                  color: AppColors.azulOscuroLogo.withOpacity(0.3),
                                   blurRadius: 20,
                                   spreadRadius: 2,
                                 ),
@@ -92,12 +136,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 24),
 
                           // Título
-                          Text(
-                            'Sistema de Traumatología',
+                          const Text(
+                            'Radilens',
                             style: TextStyle(
-                              fontSize: 26,
+                              fontSize: 32,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[800],
+                              color: AppColors.azulOscuroLogo,
                               letterSpacing: -0.5,
                             ),
                             textAlign: TextAlign.center,
@@ -112,7 +156,62 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          if (_errorMessage.isNotEmpty) ...[
+                          // Banner de error / bloqueo
+                          if (_isBlocked) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[50],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.orange[300]!),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.lock_clock,
+                                      color: Colors.orange[800], size: 22),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Demasiados intentos fallidos',
+                                          style: TextStyle(
+                                            color: Colors.orange[900],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Cuenta bloqueada. Intenta de nuevo en:',
+                                          style: TextStyle(
+                                            color: Colors.orange[800],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          _blockCountdownText,
+                                          style: TextStyle(
+                                            color: Colors.orange[900],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures()
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ] else if (_errorMessage.isNotEmpty) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
@@ -148,9 +247,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             focusNode: _usuarioFocusNode,
                             decoration: InputDecoration(
                               labelText: 'Usuario',
-                              prefixIcon: Icon(
+                              prefixIcon: const Icon(
                                 Icons.person_outline,
-                                color: Colors.blue[700],
+                                color: AppColors.azulOscuroLogo,
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -163,8 +262,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.blue[700]!,
+                                borderSide: const BorderSide(
+                                  color: AppColors.azulOscuroLogo,
                                   width: 2,
                                 ),
                               ),
@@ -181,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onFieldSubmitted: (_) {
                               _contrasenaFocusNode.requestFocus();
                             },
-                            enabled: !_isLoading,
+                            enabled: !_isLoading && !_isBlocked,
                           ),
                           const SizedBox(height: 20),
 
@@ -190,9 +289,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             focusNode: _contrasenaFocusNode,
                             decoration: InputDecoration(
                               labelText: 'Contraseña',
-                              prefixIcon: Icon(
+                              prefixIcon: const Icon(
                                 Icons.lock_outline,
-                                color: Colors.blue[700],
+                                color: AppColors.azulOscuroLogo,
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -218,8 +317,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.blue[700]!,
+                                borderSide: const BorderSide(
+                                  color: AppColors.azulOscuroLogo,
                                   width: 2,
                                 ),
                               ),
@@ -235,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _handleLogin(),
-                            enabled: !_isLoading,
+                            enabled: !_isLoading && !_isBlocked,
                           ),
 
                           const SizedBox(height: 12),
@@ -243,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: _isLoading
+                              onPressed: _isLoading || _isBlocked
                                   ? null
                                   : () {
                                       Navigator.push(
@@ -255,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       );
                                     },
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.blue[700],
+                                foregroundColor: AppColors.azulOscuroLogo,
                               ),
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',
@@ -273,9 +372,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _handleLogin,
+                              onPressed: _isLoading || _isBlocked ? null : _handleLogin,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue[700],
+                                backgroundColor: AppColors.naranjaCalido,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -295,9 +394,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                       ),
                                     )
-                                  : const Text(
-                                      'INICIAR SESIÓN',
-                                      style: TextStyle(
+                                  : Text(
+                                      _isBlocked
+                                          ? 'BLOQUEADO'
+                                          : 'INICIAR SESIÓN',
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 0.5,
@@ -422,10 +523,23 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       print(' Error en login: $e');
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      final msg = e.toString().replaceAll('Exception: ', '');
+
+      // Detectar bloqueo temporal: "Usuario bloqueado temporalmente. Intenta en X minuto(s)"
+      final blockMatch =
+          RegExp(r'Intenta en (\d+) minuto').firstMatch(msg);
+      if (blockMatch != null) {
+        final minutes = int.tryParse(blockMatch.group(1) ?? '10') ?? 10;
+        _startBlockCountdown(minutes);
+        setState(() {
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = msg;
+          _isLoading = false;
+        });
+      }
     }
   }
 }

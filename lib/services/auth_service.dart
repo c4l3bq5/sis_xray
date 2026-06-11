@@ -40,7 +40,9 @@ class AuthService {
         final message = errorData['message'] ?? 'Credenciales incorrectas';
         throw Exception(message);
       case 403:
-        throw Exception('No tiene permisos para esta acción');
+        final errorData403 = json.decode(response.body);
+        final message403 = errorData403['message'] ?? 'No tiene permisos para esta acción';
+        throw Exception(message403);
       case 404:
         throw Exception('Recurso no encontrado');
       case 409:
